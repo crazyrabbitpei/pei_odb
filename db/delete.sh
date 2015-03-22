@@ -1,1 +1,2 @@
-rm map index file_0
+rm map index file_* init
+rm ./download/*
