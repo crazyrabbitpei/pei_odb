@@ -220,93 +220,7 @@ int Gethv(char *data,int size){
 void GetFileId(){
         sprintf(db_path,"./db/file_%d",dbini[0].CURFILEID);
 }
-int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FILE *ini_file){
-    unsigned char *data;
-    int len=0,cnt=0,filesize,offset;
-    int option;
-    unsigned int index_record,index_map,index,hv;
-    FILE *db_file;
-    int data_file;
-    data_file = open(filename,O_RDWR);
-    
-    if(CheckFile(data_file,filename,"rb")==1){
-        WriteAll(index_file,map_file,ini_file);
-        return 0;
-    }
-    
-    data = malloc(sizeof(unsigned char)*DATASIZE);
-    while(len=fread(data,sizeof(unsigned char),READPER,data_file)){
-    //len=read(data_file,data,sizeof(data));
-        printf("read size:%d\n",len);
-    }
-    //filesize = len;
-    filesize = GetFileSize(data_file);
-    fclose(data_file);   
-    //close(data_file);   
-    
-    hv=0;
-    hv = Gethv(data,filesize);
-    index_record = hv % BUCKETNUMBER;
-    //ckeck file content, if exist then ask to cover existing file or ignore this import action
-    if(records[index_record].key==hv){
-        printf("file [%s] content  exist!\n",relfilename);
-        WriteAll(index_file,map_file,ini_file);
-        return 1;
-    }
 
-
-    //read db to get current offset, and get filesize
-    GetFileId();
-    db_file = fopen(db_path,"ab");
-    if(CheckFile(db_file,db_path,"ab")==1){
-        WriteAll(index_file,map_file,ini_file);
-        return 0;
-    }
-    offset = GetOffset(db_file);
-    //if current file offset + data size > DBFILESIZE, then open a new file(file_n) to store data
-    if(offset+filesize>dbini[0].MAXDBFILESIZE){
-        printf("[offset:%d,size:%d->limit %ld size]\n",offset,filesize,dbini[0].MAXDBFILESIZE);
-        if(dbini[0].CURFILEID+1>=dbini[0].DBFILENUM){
-            printf("[X] Max File ID is %d, current file num is %d\n",dbini[0].DBFILENUM,dbini[0].CURFILEID+1);
-            WriteAll(index_file,map_file,ini_file);
-            return 1;
-        }
-        else{
-            printf("file [%d] is full, now open file [%d]\n",dbini[0].CURFILEID,dbini[0].CURFILEID+1);
-            dbini[0].CURFILEID = dbini[0].CURFILEID+1;
-        }
-        fwrite(dbini,sizeof(Config),2,ini_file);
-        GetFileId();
-        fclose(db_file);
-        db_file = fopen(db_path,"wb");
-        if(CheckFile(db_file,db_path,"wb")==1){
-            WriteAll(index_file,map_file,ini_file);
-            return 0;
-        }
-    }   
-    //store into index
-
-    records[index_record].key = hv;
-    records[index_record].file_id = dbini[0].CURFILEID;
-    records[index_record].size = filesize;
-    records[index_record].offset = offset;
-
-
-    //store map
-    hv = Gethv(relfilename,strlen(relfilename));
-    index_map = hv % BUCKETNUMBER;
-    strncpy(fname_to_hv[index_map].filename,relfilename,strlen(relfilename)+1);
-    fname_to_hv[index_map].key = index_record;
-
-    WriteAll(index_file,map_file,ini_file);
-    
-    //fwrite to db
-    fwrite(data,sizeof(char),strlen(data),db_file);
-    fclose(db_file);
-
-    return 0;
-}
-/*
 int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FILE *ini_file){
     unsigned char *data;
     int len=0,cnt=0,filesize,offset;
@@ -395,7 +309,7 @@ int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FIL
 
     return 0;
 }
-*/
+
 int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file){
     unsigned int hv,index;
     int index_record;
