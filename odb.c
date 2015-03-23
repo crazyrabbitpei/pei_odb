@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     //2:download file use refer name(result_path)
     //3:just for check filename exists or not(import status)
     //TODO
-    option=3; 
+    option=1; 
     if(GetFile(relfilename,strlen(relfilename),option,result_path,ini_file)==1){//if this filename exists
         if(option==3){
             printf("filename [%s] exists,",relfilename);
@@ -269,7 +269,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     //read db to get current offset, and get filesize
     GetFileId();
-    db_file = open(db_path,O_RDWR|O_CREAT);
+    db_file = open(db_path,O_RDWR|O_CREAT,S_IRWXU);
     if(CheckFile(db_file,db_path)==1){
         WriteAll(index_file,map_file,ini_file);
         return 0;
@@ -413,7 +413,7 @@ int ReadIniFile(char *filename,int option){
     int cnt=0;
     index_file = open(filename,O_RDONLY);
     if(index_file>=0){
-        fread(dbini,sizeof(Config),2,index_file);
+        read(index_file,dbini,sizeof(Config)*2);
         if(option==1){
             for(cnt=0;cnt<2;cnt++){
                 if(dbini[cnt].DBFILENUM!=0){
