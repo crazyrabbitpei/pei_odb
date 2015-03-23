@@ -12,6 +12,8 @@
 #define READPER  10737418240//1 GB
 //#define DATASIZE  10737418240//1 GB
 #define DATASIZE  1073741824//1 M
+#define OFF 0
+#define ON 1
 typedef struct{
     /*index file format */
     unsigned int key;
@@ -62,6 +64,7 @@ detail GetIndexFile(int fileid);
 int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,char *path);
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,char *path);
 char *Rename(char *filename,int option,int ini_file,char *path);
+int ListFile();
 
 Config dbini[2];
 detail records[BUCKETNUMBER];
@@ -74,36 +77,77 @@ char result_path[100]="./db/download/";
 
 int main(int argc, char *argv[])
 {
-    if(argc!=2){
-        printf("format error!");
-        exit(1);
-    }
+    typedef enum{
+        PUT,
+        GET,
+        LIST,
+        DEL,
+        RENAME,
+    }command;
+
     int index_file,map_file,ini_file;
     char *filename,*relfilename;
     int option,cnt;
     char path[100]="./db/file_";
 
-    filename = malloc(sizeof(char)*strlen(argv[1]));
-    relfilename = malloc(sizeof(char)*strlen(argv[1]));
-    filename=argv[1];
-    strcpy(relfilename,argv[1]);
+    int choice;
+    while((choice = getopt( argc, argv, "f:c:o:"))!=-1){
+        switch( choice )
+        {
+            case 'f':
+                filename = malloc(sizeof(char)*strlen(optarg));
+                relfilename = malloc(sizeof(char)*strlen(optarg));
+                filename=optarg;
+                strcpy(relfilename,optarg);
+                break;
+
+            case 'c':
+                if(strcmp(optarg,"PUT")==0){
+
+                }
+                else if(strcmp(optarg,"PUT")==0){
+                    
+                }
+                else if(strcmp(optarg,"PUT")==0){
+                    
+                }
+                break;
+
+            case 'o':
+
+                break;
+
+            case '?':
+                /* getopt_long will have already printed an error */
+
+                break;
+
+            default:
+                /* Not sure how to get here... */
+                ;
+        }
+    }
+
+
     ////------------------------------------------------////
     /*           Read config,index,map file               */
     ////------------------------------------------------////
     /*---------------read config file---------------*/
-    if(ReadIniFile(config_path,0)==0){//dbini exists
+    if(ReadIniFile(config_path,OFF)==0){//dbini exists
         GetFileId(path);
         ini_file = open(config_path,O_WRONLY);
         if(CheckFile(ini_file,config_path)==1){
-            //WriteAll(index_file,map_file,ini_file);
-            return 0;
+            WriteAll(index_file,map_file,ini_file);
+            //return 0;
+            exit(1);
         }
     }
     else{//dbini doesn't exist
         ini_file = open(config_path,O_WRONLY|O_CREAT,S_IRWXU);
         if(CheckFile(ini_file,config_path)==1){
             WriteAll(index_file,map_file,ini_file);
-            return 0;
+            //return 0;
+            exit(1);
         }
         dbini[0].DBFILENUM=2;
         dbini[0].MAXDBFILESIZE=31457280;//30 MB
@@ -112,33 +156,37 @@ int main(int argc, char *argv[])
         GetFileId(path);
     }
     /*---------------read index file----------------*/
-    if(ReadIndexFile(index_path,0)==0){
+    if(ReadIndexFile(index_path,OFF)==0){
         index_file = open(index_path,O_WRONLY);
         if(CheckFile(index_file,index_path)==1){
             WriteAll(index_file,map_file,ini_file);
-            return 0;
+            //return 0;
+            exit(1);
         }
     }
     else{
         index_file = open(index_path,O_WRONLY|O_CREAT,S_IRWXU);
         if(CheckFile(index_file,index_path)==1){
             WriteAll(index_file,map_file,ini_file);
-            return 0;
+            //return 0;
+            exit(1);
         }
     }
     /*---------------read map file----------------*/
-    if(ReadMapFile(map_path,0)==0){
+    if(ReadMapFile(map_path,OFF)==0){
         map_file = open(map_path,O_WRONLY);
         if(CheckFile(map_file,map_path)==1){
             WriteAll(index_file,map_file,ini_file);
-            return 0;
+            //return 0;
+            exit(1);
         }
     }
     else{
         map_file = open(map_path,O_WRONLY|O_CREAT,S_IRWXU);
         if(CheckFile(map_file,map_path)==1){
             WriteAll(index_file,map_file,ini_file);
-            return 0;
+            //return 0;
+            exit(1);
         }
     }
     ////------------------------------------------------////
@@ -151,11 +199,10 @@ int main(int argc, char *argv[])
     cnt=0;
     p[cnt++] = strtok(relfilename,delim);
     while(p[cnt]=(strtok(NULL,delim))){
-        printf("[%d]%s\n",cnt,p[cnt]);
+        //printf("[%d]%s\n",cnt,p[cnt]);
         cnt++;
     }
     relfilename=p[cnt-1];
-    printf("dbpath:%s\tfilename:%s\n",db_path,relfilename);
     //1:download file use orign name
     //2:download file use refer name(result_path)
     //3:just for check filename exists or not(import status)
@@ -178,7 +225,7 @@ int main(int argc, char *argv[])
     if(PutFile(filename,relfilename,index_file,map_file,ini_file,path)==0){//success import
     }
     else{
-        printf("Import fail\n");
+        printf("Noting import.\n");
         WriteAll(index_file,map_file,ini_file);
         return 0;
     }
@@ -219,15 +266,13 @@ unsigned long int Gethv(unsigned char *data,unsigned long int size){
 }
 void GetFileId(char *path){
     sprintf(db_path,"%s%d",path,dbini[0].CURFILEID);
-    printf("curid:%d\n",dbini[0].CURFILEID);
-    printf("path:%s\n",db_path);
 }
 
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,char *path){
     unsigned char *data;
     unsigned long int filesize;
     int data_file,db_file;
-    
+
     int len=0,cnt=0;
     int offset;
     int option;
@@ -264,7 +309,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         return 0;
     }
     offset = GetOffset(db_file);
-    
+
     //if current file offset + data size > DBFILESIZE, then open a new file(file_n) to store data
     if(offset+filesize>dbini[0].MAXDBFILESIZE){
         printf("[offset:%d,size:%lu->limit %ld size]\n",offset,filesize,dbini[0].MAXDBFILESIZE);
@@ -410,13 +455,12 @@ int ReadIniFile(char *filename,int option){
                 }
             }
         }
-        else if(option==0){
-            printf("Init %s\n",filename);
-        }
         close(index_file);
         return 0;
     }
     else{
+        printf("Init %s\n",filename);
+        close(index_file);
         return 1;
     }
 }
@@ -424,7 +468,7 @@ int ReadIndexFile(char *filename,int option){
     int index_file;
     int cnt=0;
     index_file = open(filename,O_RDONLY);
-    if(CheckFile(index_file,filename)==0){
+    if(index_file>=0){
         read(index_file,records,sizeof(detail)*BUCKETNUMBER);
         if(option==1){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
@@ -433,13 +477,12 @@ int ReadIndexFile(char *filename,int option){
                 }
             }
         }
-        else if(option==0){
-            printf("Init %s\n",filename);
-        }
         close(index_file);
         return 0;
     }
     else{
+        printf("Init %s\n",filename);
+        close(index_file);
         return 1;
     }
 }
@@ -447,7 +490,7 @@ int ReadMapFile(char *filename, int option){
     int index_file;
     int cnt=0;
     index_file = open(filename,O_RDONLY);
-    if(CheckFile(index_file,filename)==0){
+    if(index_file>=0){
         read(index_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
         if(option==1){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
@@ -456,14 +499,12 @@ int ReadMapFile(char *filename, int option){
                 }
             }
         }
-        else if(option==0){
-            printf("Init %s\n",filename);
-        }
-
         close(index_file);
         return 0;
     }
     else{
+        printf("Init %s\n",filename);
+        close(index_file);
         return 1;
     }
 }
