@@ -5,11 +5,13 @@
 #include<sys/stat.h>
 #include<fcntl.h>
 #include<unistd.h>
+#include <errno.h>
 #define FILENAMELENS 100
 #define BUCKETNUMBER 1000000
 //#define READPER  5242880//5 MB
 #define READPER  10737418240//1 GB
-#define DATASIZE  10737418240//1 GB
+//#define DATASIZE  10737418240//1 GB
+#define DATASIZE  1073741824//1 M
 typedef struct{
     /*index file format */
     unsigned int key;
@@ -33,33 +35,33 @@ typedef struct{
 }Config;
 
 Config init(char *set);
-unsigned int hash33(char *key,int size);
+unsigned long int hash33(char *key,unsigned long int size);
 
-int GetOffset(FILE *file);
-int GetFileSize(FILE *file);
-int Gethv(char *data,int size);
+int GetOffset(int file);
+int GetFileSize(int file);
+unsigned long int Gethv(unsigned char *data,unsigned long int size);
 void GetFileId();
 /*-----------------------------------*/
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
 int ReadMapFile(char *filename,int option);
-void WriteAll();
-int CheckFile(FILE *file,char *filename,char *action);
+void WriteAll(int index_file,int map_file,int ini_file);
+int CheckFile(int fd,char *filename);
 //data at ./data
 //index at ./db/index
 //db at ./db
 //config at ./db/init
 /*-----------------------------------*/
 /*
-void StoreToDB();
-void StoreToIndexFile();
-void StoreToMap();
-*/
+   void StoreToDB();
+   void StoreToIndexFile();
+   void StoreToMap();
+ */
 /*-----------------------------------*/
 detail GetIndexFile(int fileid);
-int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file);
-int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FILE *ini_file);
-char *Rename(char *filename,int option,FILE *ini_file);
+int GetFile(char *filename,int size,int option,char *newfilename,int ini_file);
+int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file);
+char *Rename(char *filename,int option,int ini_file);
 
 Config dbini[2];
 detail records[BUCKETNUMBER];
@@ -77,72 +79,73 @@ int main(int argc, char *argv[])
         printf("format error!");
         exit(1);
     }
-    FILE *index_file,*map_file,*ini_file;
+    //FILE *index_file,*map_file,*ini_file;
+    int index_file,map_file,ini_file;
     char *filename,*relfilename;
     int option,cnt;
-    
+
     filename = malloc(sizeof(char)*strlen(argv[1]));
     relfilename = malloc(sizeof(char)*strlen(argv[1]));
     filename=argv[1];
     strcpy(relfilename,argv[1]);
-////------------------------------------------------////
-/*           Read config,index,map file               */
-////------------------------------------------------////
+    ////------------------------------------------------////
+    /*           Read config,index,map file               */
+    ////------------------------------------------------////
     /*---------------read config file---------------*/
     if(ReadIniFile(config_path,1)==0){//dbini exists
         GetFileId();
-        ini_file = fopen(config_path,"w");
-        if(CheckFile(ini_file,config_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+        ini_file = open(config_path,O_WRONLY);
+        if(CheckFile(ini_file,config_path)==1){
+            //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
     }
     else{//dbini doesn't exist
-        ini_file = fopen(config_path,"w");
-        if(CheckFile(ini_file,config_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+        ini_file = open(config_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(ini_file,config_path)==1){
+            //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
         dbini[0].DBFILENUM=2;
         dbini[0].MAXDBFILESIZE=31457280;//30 MB
         dbini[0].CURFILEID=0;
-        fwrite(dbini,sizeof(Config),2,ini_file);
+        write(ini_file,dbini,sizeof(Config)*2);
         GetFileId();
     }
     /*---------------read index file----------------*/
-    if(ReadIndexFile(index_path,0)==1){
-        index_file = fopen(index_path,"w");
-        if(CheckFile(index_file,index_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+    if(ReadIndexFile(index_path,0)==0){
+        index_file = open(index_path,O_WRONLY);
+        if(CheckFile(index_file,index_path)==1){
+            //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
     }
     else{
-        index_file = fopen(index_path,"w");
-        if(CheckFile(index_file,index_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+        index_file = open(index_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(index_file,index_path)==1){
+           //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
     }
     /*---------------read map file----------------*/
-    if(ReadMapFile(map_path,0)==1){
-        map_file = fopen(map_path,"w");
-        if(CheckFile(map_file,map_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+    if(ReadMapFile(map_path,0)==0){
+        map_file = open(map_path,O_WRONLY);
+        if(CheckFile(map_file,map_path)==1){
+            //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
     }
     else{
-        map_file = fopen(map_path,"w");
-        if(CheckFile(map_file,map_path,"w")==1){
-            WriteAll(index_file,map_file,ini_file);
+        map_file = open(map_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(map_file,map_path)==1){
+            //WriteAll(index_file,map_file,ini_file);
             return 0;
         }
     }
-////------------------------------------------------////
-/*   Check if filename exist, and rename for import   */
-/*   status(3) or get the file(1 or 2 )               */
-////------------------------------------------------////
+    ////------------------------------------------------////
+    /*   Check if filename exist, and rename for import   */
+    /*   status(3) or get the file(1 or 2 )               */
+    ////------------------------------------------------////
     /*separate real file name*/
     char *delim="/";
     char *p[FILENAMELENS];
@@ -158,7 +161,7 @@ int main(int argc, char *argv[])
     //2:download file use refer name(result_path)
     //3:just for check filename exists or not(import status)
     //TODO
-    option=1; 
+    option=3; 
     if(GetFile(relfilename,strlen(relfilename),option,result_path,ini_file)==1){//if this filename exists
         if(option==3){
             printf("filename [%s] exists,",relfilename);
@@ -170,9 +173,9 @@ int main(int argc, char *argv[])
             return 0;   
         }    
     }
-////------------------------------------------------////
-/*                      PutFile                       */
-////------------------------------------------------////
+    ////------------------------------------------------////
+    /*                      PutFile                       */
+    ////------------------------------------------------////
     if(PutFile(filename,relfilename,index_file,map_file,ini_file)==0){//success import
     }
     else{
@@ -182,9 +185,9 @@ int main(int argc, char *argv[])
     }
 
 
-////------------------------------------------------////
-/*          Check data import successfuly or not      */
-////------------------------------------------------////
+    ////------------------------------------------------////
+    /*          Check data import successfuly or not      */
+    ////------------------------------------------------////
 
     ReadIndexFile(index_path,1);     
     ReadMapFile(map_path,1);     
@@ -193,60 +196,66 @@ int main(int argc, char *argv[])
 }
 
 
-void WriteAll(FILE *index_file,FILE *map_file,FILE *ini_file){
+void WriteAll(int index_file,int map_file,int ini_file){
     /*---------------write file's detail---------------*/    
     //fwtite to file index
-    fwrite(records,sizeof(detail),BUCKETNUMBER,index_file);
+    write(index_file,records,sizeof(detail)*BUCKETNUMBER);
     //fwtite to map file
-    fwrite(fname_to_hv,sizeof(map),BUCKETNUMBER,map_file);
+    write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     //fwrite to dbini
-    fwrite(dbini,sizeof(Config),2,ini_file);
+    write(ini_file,dbini,sizeof(Config)*2);
 
-    fclose(index_file);
-    fclose(map_file);
-    fclose(ini_file);
+    close(index_file);
+    close(map_file);
+    close(ini_file);
 }
-int GetOffset(FILE *file){
-    fseek(file,0,SEEK_END);
-    return ftell(file);
+int GetOffset(int file){
+    return lseek(file,0,SEEK_END);
+    //return ftell(file);
 }
-int GetFileSize(FILE *file){
-    fseek(file,0,SEEK_END);
-    return ftell(file);
+int GetFileSize(int file){
+    return lseek(file,0,SEEK_END);
+    //return ftell(file);
 }
-int Gethv(char *data,int size){
+unsigned long int Gethv(unsigned char *data,unsigned long int size){
     return hash33(data,size);
 }
 void GetFileId(){
-        sprintf(db_path,"./db/file_%d",dbini[0].CURFILEID);
+    sprintf(db_path,"./db/file_%d",dbini[0].CURFILEID);
 }
 
-int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FILE *ini_file){
+int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file){
     unsigned char *data;
-    int len=0,cnt=0,filesize,offset;
-    int option;
-    unsigned int index_record,index_map,index,hv;
-    FILE *data_file,*db_file;
-    //FILE *db_file;
-    //int data_file;
-    data_file = fopen(filename,"rb");
-    //data_file = open(filename,O_RDWR);
+    unsigned long int filesize;
+    int data_file,db_file;
     
-    if(CheckFile(data_file,filename,"rb")==1){
+    int len=0,cnt=0;
+    int offset;
+    int option;
+    unsigned long int index_record,index_map,index,hv;
+    //FILE *data_file,*db_file;
+
+    //data_file = fopen(filename,"rb");
+    data_file = open(filename,O_RDONLY|O_EXCL);
+
+    if(CheckFile(data_file,filename)==1){
         WriteAll(index_file,map_file,ini_file);
         return 0;
     }
-    
     data = malloc(sizeof(unsigned char)*DATASIZE);
+    filesize=read(data_file,data,sizeof(unsigned char)*DATASIZE);
+    close(data_file);
+    //printf("data:%s\n",data);
+    printf("read:%s\tsize:%lu\n",filename,filesize);
+    /*
     while(len=fread(data,sizeof(unsigned char),READPER,data_file)){
-    //len=read(data_file,data,sizeof(data));
+        //len=read(data_file,data,sizeof(data));
         printf("read size:%d\n",len);
     }
-    //filesize = len;
-    filesize = GetFileSize(data_file);
-    fclose(data_file);   
-    //close(data_file);   
-    
+    */
+    //filesize = GetFileSize(data_file);
+    //fclose(data_file);   
+
     hv=0;
     hv = Gethv(data,filesize);
     index_record = hv % BUCKETNUMBER;
@@ -260,15 +269,16 @@ int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FIL
 
     //read db to get current offset, and get filesize
     GetFileId();
-    db_file = fopen(db_path,"ab");
-    if(CheckFile(db_file,db_path,"ab")==1){
+    db_file = open(db_path,O_RDWR|O_CREAT);
+    if(CheckFile(db_file,db_path)==1){
         WriteAll(index_file,map_file,ini_file);
         return 0;
     }
     offset = GetOffset(db_file);
+    
     //if current file offset + data size > DBFILESIZE, then open a new file(file_n) to store data
     if(offset+filesize>dbini[0].MAXDBFILESIZE){
-        printf("[offset:%d,size:%d->limit %ld size]\n",offset,filesize,dbini[0].MAXDBFILESIZE);
+        printf("[offset:%d,size:%lu->limit %ld size]\n",offset,filesize,dbini[0].MAXDBFILESIZE);
         if(dbini[0].CURFILEID+1>=dbini[0].DBFILENUM){
             printf("[X] Max File ID is %d, current file num is %d\n",dbini[0].DBFILENUM,dbini[0].CURFILEID+1);
             WriteAll(index_file,map_file,ini_file);
@@ -278,11 +288,11 @@ int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FIL
             printf("file [%d] is full, now open file [%d]\n",dbini[0].CURFILEID,dbini[0].CURFILEID+1);
             dbini[0].CURFILEID = dbini[0].CURFILEID+1;
         }
-        fwrite(dbini,sizeof(Config),2,ini_file);
+        write(ini_file,dbini,sizeof(Config)*2);
         GetFileId();
-        fclose(db_file);
-        db_file = fopen(db_path,"wb");
-        if(CheckFile(db_file,db_path,"wb")==1){
+        close(db_file);
+        db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(db_file,db_path)==1){
             WriteAll(index_file,map_file,ini_file);
             return 0;
         }
@@ -302,21 +312,21 @@ int PutFile(char *filename,char *relfilename,FILE *index_file,FILE *map_file,FIL
     fname_to_hv[index_map].key = index_record;
 
     WriteAll(index_file,map_file,ini_file);
-    
+
     //fwrite to db
-    fwrite(data,sizeof(char),strlen(data),db_file);
-    fclose(db_file);
+    write(db_file,data,sizeof(char)*filesize);
+    close(db_file);
 
     return 0;
 }
 
-int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file){
-    unsigned int hv,index;
+int GetFile(char *filename,int size,int option,char *newfilename,int ini_file){
+    unsigned long int hv,index;
     int index_record;
     int cnt;
     char *data;
     char result_path[100]="";
-    FILE *db_file,*result,*index_file,*map_file;
+    int db_file,result,index_file,map_file;
     hv = Gethv(filename,size);
     index = hv % BUCKETNUMBER;
     if(strcmp(fname_to_hv[index].filename,filename)==0){
@@ -326,16 +336,16 @@ int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file)
         }
         index_record = fname_to_hv[index].key;
         printf("get file index [%d]:file [%d] %u\t%d\t%d\n",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
-        
+
         sprintf(db_path,"./db/file_%d",records[index_record].file_id);
-        db_file = fopen(db_path,"rb");
-        if(CheckFile(db_file,db_path,"rb")==1){
+        db_file = open(db_path,O_RDONLY);
+        if(CheckFile(db_file,db_path)==1){
             WriteAll(index_file,map_file,ini_file);
             return 1;
         }
-        fseek(db_file,records[index_record].offset,SEEK_SET);
+        lseek(db_file,records[index_record].offset,SEEK_SET);
         data = malloc(sizeof(char)*records[index_record].size);
-        fread(data,sizeof(char),records[index_record].size,db_file);
+        read(db_file,data,sizeof(char)*records[index_record].size);
         if(option==1){//1:original filename,2:refer filename
             sprintf(result_path,"./db/download/%s",filename);
             printf("download file [%s]\n",filename);
@@ -344,14 +354,14 @@ int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file)
             sprintf(result_path,"./db/download/%s",newfilename);
             printf("download file [%s], and rename to [%s]\n",filename,newfilename);
         }
-        result = fopen(result_path,"wb");
-        if(CheckFile(result,result_path,"wb")==1){
+        result = open(result_path,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+        if(CheckFile(result,result_path)==1){
             WriteAll(index_file,map_file,ini_file);
             return 1;
         }
-        fwrite(data,sizeof(char),records[index_record].size,result);
-        fclose(db_file);
-        fclose(result);
+        write(result,data,sizeof(char)*records[index_record].size);
+        close(db_file);
+        close(result);
         return 1;
     }
     else{
@@ -359,7 +369,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,FILE *ini_file)
         return 0;
     }
 }
-char *Rename(char *filename,int option,FILE *ini_file){
+char *Rename(char *filename,int option,int ini_file){
     char *new;
     char *delim=".";
     char *p[FILENAMELENS];
@@ -383,24 +393,26 @@ char *Rename(char *filename,int option,FILE *ini_file){
         sprintf(new,"%s_%d",p[0],1);
     }
     if(GetFile(new,strlen(new),option,result_path,ini_file)==1){//if this filename exists
-       new = Rename(new,option,ini_file);    
+        new = Rename(new,option,ini_file);    
     }
 
 
     return new;
 }
-int CheckFile(FILE *file,char *filename,char *action){
-    if(file==NULL){
-        printf("file [%s] can't [%s]\n",filename,action);
+int CheckFile(int fd,char *filename){
+    if(fd<0){
+        printf("Opening file %s: Failed\n",filename);
+        printf ("Error no is : %d\n", errno);
+        printf("Error description is : %s\n",strerror(errno));
         return 1;
     }
     return 0;
 }
 int ReadIniFile(char *filename,int option){
-    FILE *index_file;
+    int index_file;
     int cnt=0;
-    index_file = fopen(filename,"rb");
-    if(index_file!=NULL){
+    index_file = open(filename,O_RDONLY);
+    if(index_file>=0){
         fread(dbini,sizeof(Config),2,index_file);
         if(option==1){
             for(cnt=0;cnt<2;cnt++){
@@ -409,7 +421,7 @@ int ReadIniFile(char *filename,int option){
                 }
             }
         }
-        fclose(index_file);
+        close(index_file);
         return 0;
     }
     else{
@@ -417,11 +429,12 @@ int ReadIniFile(char *filename,int option){
     }
 }
 int ReadIndexFile(char *filename,int option){
-    FILE *index_file;
+    int index_file;
     int cnt=0;
-    index_file = fopen(filename,"rb");
-    if(index_file!=NULL){
-        fread(records,sizeof(detail),BUCKETNUMBER,index_file);
+    index_file = open(filename,O_RDONLY);
+    //if(index_file!=NULL){
+    if(CheckFile(index_file,filename)==0){
+        read(index_file,records,sizeof(detail)*BUCKETNUMBER);
         if(option==1){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(records[cnt].key!=0){
@@ -429,7 +442,7 @@ int ReadIndexFile(char *filename,int option){
                 }
             }
         }
-        fclose(index_file);
+        close(index_file);
         return 0;
     }
     else{
@@ -437,12 +450,12 @@ int ReadIndexFile(char *filename,int option){
     }
 }
 int ReadMapFile(char *filename, int option){
-    FILE *index_file;
+    int index_file;
     int cnt=0;
-    index_file = fopen(filename,"rb");
-    if(index_file!=NULL){
-        fread(fname_to_hv,sizeof(map),BUCKETNUMBER,index_file);
-        
+    index_file = open(filename,O_RDONLY);
+    //if(index_file!=NULL){
+    if(CheckFile(index_file,filename)==0){
+        read(index_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
         if(option==1){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(fname_to_hv[cnt].key!=0){
@@ -450,15 +463,15 @@ int ReadMapFile(char *filename, int option){
                 }
             }
         }
-        
-        fclose(index_file);
+
+        close(index_file);
         return 0;
     }
     else{
         return 1;
     }
 }
-unsigned int hash33(char *key,int size)
+unsigned long int hash33(char *key,unsigned long int size)
 {
     char *ptr = key;
     unsigned int hv = 0;
