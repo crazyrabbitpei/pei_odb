@@ -9,9 +9,12 @@
 #define DATASIZE  1073741824//1 MB
 int main(int argc, char *argv[])
 {
-    int fd,size,cnt;
+    int fd;
+    unsigned long size;
+    unsigned char *buffer;
+    int cnt;
     char s[]="Linux Programmer!\n";
-    char *buffer;
+
     char path[100];
     char *filename,*relfilename;
     buffer = malloc(sizeof(unsigned char)*DATASIZE);
@@ -20,7 +23,7 @@ int main(int argc, char *argv[])
     size=read(fd,buffer,DATASIZE);
     close(fd);
     
-    printf("read:%s\tsize:%lu\n",argv[1],strlen(buffer));
+    printf("read:%s\tsize:%lu\n",argv[1],size);
 
     filename = malloc(sizeof(char)*strlen(argv[1]));
     relfilename = malloc(sizeof(char)*strlen(argv[1]));
@@ -39,7 +42,7 @@ int main(int argc, char *argv[])
 
     sprintf(path,"./db/download/%s",relfilename);
     fd=open(path,O_WRONLY|O_CREAT,S_IRWXU);
-    size = write(fd,buffer,strlen(buffer));
+    size = write(fd,buffer,size);
     //printf("data:%s\tsize:%d\n",buffer,size);
     close(fd);
     printf("write to :%s",path);
