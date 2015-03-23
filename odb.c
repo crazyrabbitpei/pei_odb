@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     /*           Read config,index,map file               */
     ////------------------------------------------------////
     /*---------------read config file---------------*/
-    if(ReadIniFile(config_path,1)==0){//dbini exists
+    if(ReadIniFile(config_path,0)==0){//dbini exists
         GetFileId();
         ini_file = open(config_path,O_WRONLY);
         if(CheckFile(ini_file,config_path)==1){
@@ -269,7 +269,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     //read db to get current offset, and get filesize
     GetFileId();
-    db_file = open(db_path,O_RDWR|O_CREAT,S_IRWXU);
+    db_file = open(db_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
     if(CheckFile(db_file,db_path)==1){
         WriteAll(index_file,map_file,ini_file);
         return 0;
@@ -291,7 +291,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         write(ini_file,dbini,sizeof(Config)*2);
         GetFileId();
         close(db_file);
-        db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU);
+        db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU|S_IRGRP);
         if(CheckFile(db_file,db_path)==1){
             WriteAll(index_file,map_file,ini_file);
             return 0;
@@ -354,7 +354,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file){
             sprintf(result_path,"./db/download/%s",newfilename);
             printf("download file [%s], and rename to [%s]\n",filename,newfilename);
         }
-        result = open(result_path,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU);
+        result = open(result_path,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP|S_IROTH);
         if(CheckFile(result,result_path)==1){
             WriteAll(index_file,map_file,ini_file);
             return 1;
@@ -421,6 +421,9 @@ int ReadIniFile(char *filename,int option){
                 }
             }
         }
+        else if(option==0){
+            printf("Init %s\n",filename);
+        }
         close(index_file);
         return 0;
     }
@@ -442,6 +445,9 @@ int ReadIndexFile(char *filename,int option){
                 }
             }
         }
+        else if(option==0){
+            printf("Init %s\n",filename);
+        }
         close(index_file);
         return 0;
     }
@@ -462,6 +468,9 @@ int ReadMapFile(char *filename, int option){
                     printf("[%d]map file:%s->%d\n",cnt,fname_to_hv[cnt].filename,fname_to_hv[cnt].key);
                 }
             }
+        }
+        else if(option==0){
+            printf("Init %s\n",filename);
         }
 
         close(index_file);
