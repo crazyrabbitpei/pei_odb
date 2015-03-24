@@ -10,12 +10,19 @@
 #define BUCKETNUMBER 1000000
 #define READPER  1073741824//1 GB
 #define DATASIZE  1073741824//1 GB
-//TODO : write name yo file
 typedef enum{
     OFF,
     ON
 }show;
 
+typedef enum{
+    PUT,
+    GET,
+    LIST,
+    DETAIL,
+    DEL,
+    RENAME
+}command;
 
 typedef struct{
     /*index file format */
@@ -24,13 +31,14 @@ typedef struct{
     int offset;
     int size;
 }detail;
+
 typedef struct{
     /* filename map to hv */
-    //char filename[FILENAMELENS];
     int key;
 } map;
 
 typedef struct{
+    /*just store filename*/
     char filename[FILENAMELENS];
 }name;
 
@@ -40,16 +48,17 @@ typedef struct{
     long int MAXDBFILESIZE;
     //int BUCKETNUMBER;
     int CURFILEID;
-    /*DATA.......*/
 }Config;
 
+//TODO
 Config init(char *set);
-unsigned long int hash33(unsigned char *key,unsigned long int size);
+detail GetIndexFile(int fileid);
 
 int GetOffset(int file);
 int GetFileSize(int file);
-unsigned long int Gethv(unsigned char *data,unsigned long int size);
 void GetFileId(char *path);
+unsigned long int Gethv(unsigned char *data,unsigned long int size);
+unsigned long int hash33(unsigned char *key,unsigned long int size);
 /*-----------------------------------*/
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
@@ -59,23 +68,21 @@ int ReadNameFile(char *filename,int option);
 void WriteAll(int index_file,int map_file,int ini_file,int name_file);
 int CheckFile(int fd,char *filename);
 void msg();
-//data at ./data
-//index at ./db/index
-//db at ./db
-//config at ./db/init
 /*-----------------------------------*/
 /*
    void StoreToDB();
    void StoreToIndexFile();
    void StoreToMap();
- */
+*/
 /*-----------------------------------*/
-detail GetIndexFile(int fileid);
 int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,int name_file,char *path);
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename);
 char *Rename(char *filename,int option,int ini_file,int name_file,char *path,char *newfilename);
-int ListFile();
-
+//TODO
+/*
+void ListFile();
+void DeleteFile();
+*/
 Config dbini[2];
 detail records[BUCKETNUMBER];
 map fname_to_hv[BUCKETNUMBER]={-1};
@@ -87,17 +94,6 @@ char map_path[100]="./db/map";
 char name_path[100]="./db/fname";
 char config_path[100]="./db/init";
 char result_path[100]="./db/download/";
-
-int filenums=0;
-
-typedef enum{
-    PUT,
-    GET,
-    LIST,
-    DETAIL,
-    DEL,
-    RENAME
-}command;
 
 int main(int argc, char *argv[])
 {
@@ -316,7 +312,6 @@ int main(int argc, char *argv[])
     ////------------------------------------------------////
     /*                  Rename file                       */
     ////------------------------------------------------////
-    //TODO[1]:in text book
     if(option==RENAME){
         if(strcmp(newfilename,"")==0){
             printf("New filename?\n");
@@ -328,7 +323,7 @@ int main(int argc, char *argv[])
             printf("rename file [%s] to ",relfilename);
             strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
             printf("[%s]\n",relfilename);
-            //TODO
+            
             strcpy(name_list[index].filename,"");
             key = fname_to_hv[index].key;
             fname_to_hv[index].key=-1;
