@@ -8,6 +8,7 @@
 #include <errno.h>
 #define FILENAMELENS 50
 #define BUCKETNUMBER 1000000
+#define DBININUM 2
 #define READPER  1073741824//1 GB
 #define DATASIZE  1073741824//1 GB
 typedef enum{
@@ -21,6 +22,7 @@ typedef enum{
     LIST,
     DETAIL,
     DEL,
+    //TODO : FIND (use GetFile & fname to find the files that contain keyword)
     RENAME
 }command;
 
@@ -52,7 +54,7 @@ typedef struct{
 
 //TODO
 Config init(char *set);
-detail GetIndexFile(int fileid);
+detail GetIndexFile(int fileid);//to get index[fileid] current offset,size
 
 int GetOffset(int file);
 int GetFileSize(int file);
@@ -73,17 +75,17 @@ void msg();
    void StoreToDB();
    void StoreToIndexFile();
    void StoreToMap();
-*/
+ */
 /*-----------------------------------*/
 int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,int name_file,char *path);
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename);
 char *Rename(char *filename,int option,int ini_file,int name_file,char *path,char *newfilename);
-//TODO
+//TODO : package function
 /*
-void ListFile();
-void DeleteFile();
-*/
-Config dbini[2];
+   void ListFile();
+   void DeleteFile();
+ */
+Config dbini[DBININUM];
 detail records[BUCKETNUMBER];
 map fname_to_hv[BUCKETNUMBER]={-1};
 name name_list[BUCKETNUMBER]={""};
@@ -102,6 +104,26 @@ int main(int argc, char *argv[])
     int option=-1,cnt,index;
     char path[100]="./db/file_";
 
+
+    ////------------------------------------------------////
+    /*                   CGI                              */
+    ////------------------------------------------------////
+#if 1    
+    char *data;
+    long m,n;
+    printf("%s%c%c\n",
+            "Content-Type:text/html;charset=iso-8859-1",13,10);
+    data = getenv("QUERY_STRING");
+    if(data == NULL)
+        printf("<P>Error! Error in passing data from form to script.");
+    else if(sscanf(data,"m=%ld&n=%ld",&m,&n)!=2)
+        printf("<P>Error! Invalid data. Data must be numeric.");
+    else
+        printf("<P>The product of %ld and %ld is %ld.",m,n,m*n);
+    
+    return 0;
+}
+#else
     int choice;
     cnt=0;
     while((choice = getopt( argc, argv, "f::c:o::l"))!=-1){
@@ -181,7 +203,7 @@ int main(int argc, char *argv[])
         dbini[0].MAXDBFILESIZE=DATASIZE;
         dbini[0].CURFILEID=0;
         ReadIniFile(config_path,ON);
-        write(ini_file,dbini,sizeof(Config)*2);
+        write(ini_file,dbini,sizeof(Config)*DBININUM);
         GetFileId(path);
     }
     /*---------------read index file----------------*/
@@ -240,7 +262,7 @@ int main(int argc, char *argv[])
     /*   status(3) or get the file(1 or 2 )               */
     ////------------------------------------------------////
     /*separate real file name*/
-    if(option!=LIST){
+    if(option!=LIST&&option!=DETAIL){
         char *delim="/";
         char *p[FILENAMELENS];
         cnt=0;
@@ -257,13 +279,13 @@ int main(int argc, char *argv[])
     //GET & RENAME:download file use refer name(newfilename)
     //PUT:just for check filename exists or not(import status)
     if(option==PUT||option==GET){
-          
+
         if(option==PUT&&strcmp(newfilename,"")!=0){
             strcpy(relfilename,"");
             strcpy(relfilename,newfilename);
             strcpy(newfilename,"");
         }
-         
+
         if(GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path)!=0){//if this filename exists
             if(option==PUT){
                 printf("filename [%s] exists,",relfilename);
@@ -323,7 +345,7 @@ int main(int argc, char *argv[])
             printf("rename file [%s] to ",relfilename);
             strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
             printf("[%s]\n",relfilename);
-            
+
             strcpy(name_list[index].filename,"");
             key = fname_to_hv[index].key;
             fname_to_hv[index].key=-1;
@@ -357,6 +379,8 @@ int main(int argc, char *argv[])
     close(ini_file);
     return 0;
 }
+#endif
+
 void msg(){
     fprintf(stderr,"usage:./a.out -f [filename] -c [command] -o [newfilename]\n");
     exit(1);
@@ -371,7 +395,7 @@ void WriteAll(int index_file,int map_file,int ini_file,int name_file){
     //fwtite to name file
     write(name_file,name_list,sizeof(name)*BUCKETNUMBER);
     //fwrite to dbini
-    write(ini_file,dbini,sizeof(Config)*2);
+    write(ini_file,dbini,sizeof(Config)*DBININUM);
 
     close(index_file);
     close(map_file);
@@ -384,6 +408,11 @@ int GetOffset(int file){
 int GetFileSize(int file){
     int len = lseek(file,0,SEEK_END);
     lseek(file,0,SEEK_SET);
+    if(len>DATASIZE){
+        //TODO :split data to small data
+        printf("[X]data size > %d\n",DATASIZE);
+        exit(1);
+    }
     return len;
 }
 unsigned long int Gethv(unsigned char *data,unsigned long int size){
@@ -455,7 +484,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
             dbini[0].CURFILEID = dbini[0].CURFILEID+1;
             offset=0;
         }
-        write(ini_file,dbini,sizeof(Config)*2);
+        write(ini_file,dbini,sizeof(Config)*DBININUM);
         GetFileId(path);
         close(db_file);
         db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU|S_IRGRP);
@@ -474,10 +503,10 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
     index_map = hv % BUCKETNUMBER;
     fname_to_hv[index_map].key = index_record;
-    
+
     //store name list
     strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-    
+
     //fwrite to db
     write(db_file,data,sizeof(char)*filesize);
     close(db_file);
@@ -492,7 +521,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     int cnt;
     char *data;
     int db_file,result,index_file,map_file;
-    
+
     //printf("1.GetFilename:%s\n",filename);
     hv = Gethv((unsigned char *)filename,(unsigned long int)size);
     index = hv % BUCKETNUMBER;
@@ -604,9 +633,9 @@ int ReadIniFile(char *filename,int option){
     int cnt=0;
     index_file = open(filename,O_RDONLY);
     if(index_file>=0){
-        read(index_file,dbini,sizeof(Config)*2);
+        read(index_file,dbini,sizeof(Config)*DBININUM);
         if(option==ON){
-            for(cnt=0;cnt<2;cnt++){
+            for(cnt=0;cnt<DBININUM;cnt++){
                 if(dbini[cnt].DBFILENUM!=0){
                     printf("dbini file->DBFILENUM:%d\tMAXDBFILESIZE:%ld\tCURFILEID:%d\n",dbini[cnt].DBFILENUM,dbini[cnt].MAXDBFILESIZE,dbini[cnt].CURFILEID);
                 }
