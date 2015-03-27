@@ -97,59 +97,7 @@ char name_path[100]="./db/fname";
 char config_path[100]="./db/init";
 char result_path[100]="./db/download/";
 
-void unencode(char *src, char *last, char *dest);
-int main(int argc, char *argv[])
-{
-    int index_file,map_file,ini_file,name_file;
-    char *filename,relfilename[100]="",newfilename[100]="";
-    int option=-1,cnt,index;
-    char path[100]="./db/file_";
-
-
-    ////------------------------------------------------////
-    /*                   CGI                              */
-    ////------------------------------------------------////
-#if 1    
-    char *data;
-    char command[10];
-    char *lenstr;
-    long len;
-    int m,n;
-    printf("%s%c%c\n","Content-Type:text/html;charset=iso-8859-1",13,10);
-    printf("<title>pei_odb</title>\n");
-    data = getenv("QUERY_STRING");//for GET
-    sscanf(data,"command=%s",command);
-    printf("command = %s\n,",command);
-    
-    lenstr = getenv("CONTENT_LENGTH");//for POST
-    if(lenstr==NULL||sscanf(lenstr,"%ld",&len)!=1){
-        printf("error\n");
-    }
-    else{
-        int data_file;
-        char *input, *data;
-        input = malloc(sizeof(char)*DATASIZE);
-        data = malloc(sizeof(char)*DATASIZE);
-        while(fgets(input, len+1,stdin)!=NULL){
-
-        }
-        printf("data:%s\n",input);
-        //unencode(input+5, input+len, data);
-        /*
-        data_file = open("./data/result",O_WRONLY|O_CREAT);
-        if(data_file<0){
-            printf("write error.\n");
-        }
-        else{
-            //fputs();
-            write(data_file,data,strlen(data));
-        }
-        close(data_file);
-        */
-
-    }
-    return 0;
-}
+//void unencode(char *src, char *last, char *dest);
 void unencode(char *src, char *last, char *dest)
 {
     for(; src != last; src++, dest++)
@@ -167,6 +115,62 @@ void unencode(char *src, char *last, char *dest)
     *++dest = '\0';
 
 }
+
+int main(int argc, char *argv[])
+{
+    int index_file,map_file,ini_file,name_file;
+    char *filename,relfilename[100]="",newfilename[100]="";
+    int option=-1,cnt,index;
+    char path[100]="./db/file_";
+
+    ////------------------------------------------------////
+    /*                   CGI                              */
+    ////------------------------------------------------////
+#if 1
+    //TODO : parse http header to get file's content, name,type....
+    char *command,cm[10];
+    char *method;
+    char *lenstr;
+    size_t len;
+    int m,n;
+    int output,data_file;
+    char *input, *data;
+
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+    printf("<title>pei_odb</title>\n");
+    method = getenv("REQUEST_METHOD");
+    printf("method:%s\n",method);
+    command = getenv("QUERY_STRING");//for GET
+    sscanf(command,"command=%s",cm);
+    printf("command = %s\n",cm);
+    
+    output = open("./data/test",O_WRONLY|O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO);
+    CheckFile(output,"./data/test");
+    write(output,cm,strlen(cm));
+    close(output);
+
+    lenstr = getenv("CONTENT_LENGTH");//for POST
+    if(lenstr==NULL||sscanf(lenstr,"%ld",&len)!=1||len>DATASIZE){
+        printf("error\n");
+    }
+    else{
+
+        printf("file len:%li\n",len);
+        input = malloc(sizeof(char)*DATASIZE);
+        data = malloc(sizeof(char)*DATASIZE);
+        while(read(0,input,len)){
+            printf("%s",input);
+        }
+        unencode(input+5, input+len, data);
+        data_file = open("./data/result",O_WRONLY|O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO);
+        if(data_file<0){
+            printf("write error.\n");
+        }
+        else{
+            write(data_file,data,len);
+        }
+        close(data_file);
+    }
 #else
 int choice;
 cnt=0;
@@ -421,9 +425,10 @@ close(index_file);
 close(map_file);
 close(name_file);
 close(ini_file);
+#endif
 return 0;
 }
-#endif
+
 
 void msg(){
     fprintf(stderr,"usage:./a.out -f [filename] -c [command] -o [newfilename]\n");
