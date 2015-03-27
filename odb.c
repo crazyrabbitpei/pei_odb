@@ -6,6 +6,7 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include <errno.h>
+#include "cgic.h" 
 #define FILENAMELENS 50
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
@@ -116,10 +117,11 @@ void unencode(char *src, char *last, char *dest)
 
 }
 
-int main(int argc, char *argv[])
+int cgiMain()
+//int cgiMain(int argc, char *argv[])
 {
     int index_file,map_file,ini_file,name_file;
-    char *filename,relfilename[100]="",newfilename[100]="";
+    char filename[FILENAMELENS]="",relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="";
     int option=-1,cnt,index;
     char path[100]="./db/file_";
 
@@ -128,305 +130,321 @@ int main(int argc, char *argv[])
     ////------------------------------------------------////
 #if 1
     //TODO : parse http header to get file's content, name,type....
-    char *command,cm[10];
+    char command[10],*cm;
     char *method;
-    char *lenstr;
-    size_t len;
+    int len;
     int m,n;
     int output,data_file;
     char *input, *data;
 
+    input = malloc(sizeof(char)*DATASIZE);
+    data = malloc(sizeof(char)*DATASIZE);
+
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
     printf("<title>pei_odb</title>\n");
-    method = getenv("REQUEST_METHOD");
-    printf("method:%s\n",method);
-    command = getenv("QUERY_STRING");//for GET
-    sscanf(command,"command=%s",cm);
-    printf("command = %s\n",cm);
     
-    output = open("./data/test",O_WRONLY|O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO);
-    CheckFile(output,"./data/test");
-    write(output,cm,strlen(cm));
-    close(output);
+    //check method
+    method = getenv("REQUEST_METHOD");
+    fprintf(cgiOut,"<p>method:%s</p>",method);
+    //query
+    //cm = getenv("QUERY_STRING");//for GET
+    //sscanf(cm,"command=%s",command);
+    if(cgiFormString("command", command, sizeof(command))==cgiFormNotFound){
+        printf("<p>Command [%s] doesn't exist!</p>",command);
+    }
 
-    lenstr = getenv("CONTENT_LENGTH");//for POST
-    if(lenstr==NULL||sscanf(lenstr,"%ld",&len)!=1||len>DATASIZE){
-        printf("error\n");
+    fprintf(cgiOut,"<p>command:%s</p>",command);
+    ////------------------------------------------------////
+    /*                   Command  detect                  */
+    ////------------------------------------------------////
+    if(strcmp(command,"PUT")==0){
+        option=PUT;
+    }
+    else if(strcmp(command,"GET")==0){
+        option=GET;
+    }
+    else if(strcmp(command,"LIST")==0){
+        option=LIST;
+    }
+    else if(strcmp(command,"DETAIL")==0){
+        option = DETAIL;
+    }
+    else if(strcmp(command,"DEL")==0){
+        option=DEL;
+    }
+    else if(strcmp(command,"RENAME")==0){
+        option=RENAME;
     }
     else{
+        fprintf(cgiOut, "<p>Illegal option:[%s]</p>", command);
+    }
 
-        printf("file len:%li\n",len);
-        input = malloc(sizeof(char)*DATASIZE);
-        data = malloc(sizeof(char)*DATASIZE);
-        while(read(0,input,len)){
-            printf("%s",input);
+    if(option==PUT||option==GET||option==RENAME||option==DEL){
+        if(cgiFormFileName("file", filename, sizeof(filename)) != cgiFormSuccess){
+            fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
+            return 1;
         }
-        unencode(input+5, input+len, data);
-        data_file = open("./data/result",O_WRONLY|O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO);
-        if(data_file<0){
-            printf("write error.\n");
-        }
-        else{
-            write(data_file,data,len);
-        }
-        close(data_file);
+        strcpy(relfilename,filename);
     }
-#else
-int choice;
-cnt=0;
-while((choice = getopt( argc, argv, "f::c:o::l"))!=-1){
-    switch(choice)
-    {
-        case 'f':
-            filename = malloc(sizeof(char)*strlen(optarg));
-            filename=optarg;
-            strcpy(relfilename,optarg);
-            break;
-
-        case 'c':
-            if(strcmp(optarg,"PUT")==0){
-                option=PUT;
-            }
-            else if(strcmp(optarg,"GET")==0){
-                option=GET;
-            }
-            else if(strcmp(optarg,"LIST")==0){
-                option=LIST;
-            }
-            else if(strcmp(optarg,"DETAIL")==0){
-                option = DETAIL;
-            }
-            //TODO
-            else if(strcmp(optarg,"DEL")==0){
-                option=DEL;
-            }
-            else if(strcmp(optarg,"RENAME")==0){
-                option=RENAME;
-            }
-            break;
-
-        case 'o':
-            strcpy(newfilename,optarg);
-            break;
-
-        case '?':
-            fprintf(stderr, "Illegal option:-%c\n", optopt);
-            break;
-
-        default:
-            fprintf(stderr, "Not supported option:%c\n",choice);
-            break;
-    }
-}
-if(optind!=argc||option==-1){
-    msg();
-}
-if(option==PUT||option==GET||option==RENAME||option==DEL){
-    if(strcmp(relfilename,"")==0){
-        msg();
-    }    
-}
-////------------------------------------------------////
-/*           Read config,index,map file               */
-////------------------------------------------------////
-/*---------------read config file---------------*/
-if(ReadIniFile(config_path,OFF)==0){//dbini exists
-    GetFileId(path);
-    ini_file = open(config_path,O_WRONLY);
-    if(CheckFile(ini_file,config_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-//TODO:Config by user
-else{//dbini doesn't exist,init now
-    ini_file = open(config_path,O_WRONLY|O_CREAT,S_IRWXU);
-    if(CheckFile(ini_file,config_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-    dbini[0].DBFILENUM=10;
-    dbini[0].MAXDBFILESIZE=DATASIZE;
-    dbini[0].CURFILEID=0;
-    ReadIniFile(config_path,ON);
-    write(ini_file,dbini,sizeof(Config)*DBININUM);
-    GetFileId(path);
-}
-/*---------------read index file----------------*/
-if(ReadIndexFile(index_path,OFF)==0){
-    index_file = open(index_path,O_WRONLY);
-    if(CheckFile(index_file,index_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-else{
-    index_file = open(index_path,O_WRONLY|O_CREAT,S_IRWXU);
-    if(CheckFile(index_file,index_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-/*---------------read map file----------------*/
-if(ReadMapFile(map_path,OFF)==0){
-    map_file = open(map_path,O_WRONLY);
-    if(CheckFile(map_file,map_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-else{
-    map_file = open(map_path,O_WRONLY|O_CREAT,S_IRWXU);
-    if(CheckFile(map_file,map_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-/*---------------read fname file----------------*/
-if(ReadNameFile(name_path,OFF)==0){
-    name_file = open(name_path,O_WRONLY);
-    if(CheckFile(name_file,name_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-else{
-    name_file = open(name_path,O_WRONLY|O_CREAT,S_IRWXU);
-    if(CheckFile(name_file,name_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        //return 0;
-        exit(1);
-    }
-}
-////------------------------------------------------////
-/*   Check if filename exist, and rename for import   */
-/*   status(3) or get the file(1 or 2 )               */
-////------------------------------------------------////
-/*separate real file name*/
-if(option!=LIST&&option!=DETAIL){
-    char *delim="/";
-    char *p[FILENAMELENS];
+/*
+    int choice;
     cnt=0;
-    p[cnt] = strtok(relfilename,delim);
-    //printf("[%d]%s\n",cnt-1,p[cnt-1]);
-    while(p[cnt]){
-        //printf("[%d]%s\n",cnt,p[cnt]);
-        p[++cnt]=(strtok(NULL,delim));
-        //cnt++;
-    }
-    strcpy(relfilename,p[cnt-1]);
-}
-//GET:download file use orign name
-//GET & RENAME:download file use refer name(newfilename)
-//PUT:just for check filename exists or not(import status)
-if(option==PUT||option==GET){
+    while((choice = getopt( argc, argv, "f::c:o::l"))!=-1){
+        switch(choice)
+        {
+            case 'f':
+                filename = malloc(sizeof(char)*strlen(optarg));
+                filename=optarg;
+                strcpy(relfilename,optarg);
+                break;
 
-    if(option==PUT&&strcmp(newfilename,"")!=0){
-        strcpy(relfilename,"");
-        strcpy(relfilename,newfilename);
-        strcpy(newfilename,"");
-    }
+            case 'c':
+                if(strcmp(optarg,"PUT")==0){
+                    option=PUT;
+                }
+                else if(strcmp(optarg,"GET")==0){
+                    option=GET;
+                }
+                else if(strcmp(optarg,"LIST")==0){
+                    option=LIST;
+                }
+                else if(strcmp(optarg,"DETAIL")==0){
+                    option = DETAIL;
+                }
+                //TODO
+                else if(strcmp(optarg,"DEL")==0){
+                    option=DEL;
+                }
+                else if(strcmp(optarg,"RENAME")==0){
+                    option=RENAME;
+                }
+                break;
 
-    if(GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path)!=0){//if this filename exists
-        if(option==PUT){
-            printf("filename [%s] exists,",relfilename);
-            strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
-            printf("so will rename to [%s]\n",relfilename);
+            case 'o':
+                strcpy(newfilename,optarg);
+                break;
+
+            case '?':
+                fprintf(stderr, "Illegal option:-%c\n", optopt);
+                break;
+
+            default:
+                fprintf(stderr, "Not supported option:%c\n",choice);
+                break;
         }
-        else if(option==GET){
-            WriteAll(index_file,map_file,ini_file,name_file);
-            return 0;   
+    }
+    if(optind!=argc||option==-1){
+        msg();
+    }
+    if(option==PUT||option==GET||option==RENAME||option==DEL){
+        if(strcmp(relfilename,"")==0){
+            msg();
         }    
     }
-}
-////------------------------------------------------////
-/*                      PutFile                       */
-////------------------------------------------------////
-if(option==PUT){
-    if(PutFile(filename,relfilename,index_file,map_file,ini_file,name_file,path,newfilename)==0){//success import
-        printf("Import Success.\n");
+*/
+    ////------------------------------------------------////
+    /*           Read config,index,map file               */
+    ////------------------------------------------------////
+    /*---------------read config file---------------*/
+    if(ReadIniFile(config_path,OFF)==0){//dbini exists
+        GetFileId(path);
+        ini_file = open(config_path,O_WRONLY);
+        if(CheckFile(ini_file,config_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
+    }
+    //TODO:Config by user
+    else{//dbini doesn't exist,init now
+        ini_file = open(config_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(ini_file,config_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
+        dbini[0].DBFILENUM=10;
+        dbini[0].MAXDBFILESIZE=DATASIZE;
+        dbini[0].CURFILEID=0;
+        ReadIniFile(config_path,ON);
+        write(ini_file,dbini,sizeof(Config)*DBININUM);
+        GetFileId(path);
+    }
+    /*---------------read index file----------------*/
+    if(ReadIndexFile(index_path,OFF)==0){
+        index_file = open(index_path,O_WRONLY);
+        if(CheckFile(index_file,index_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
     else{
-        printf("Nothing import.\n");
+        index_file = open(index_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(index_file,index_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
-    WriteAll(index_file,map_file,ini_file,name_file);
-    return 0;
-}
-////------------------------------------------------////
-/*  Delete file, will not really delete data from     */
-/*  db file, but will delete from map and name file.  */
-/*  So, if next time, when content that had been      */
-/*  imported before be imported again, will show      */
-/*  content exists.                                   */
-////------------------------------------------------////
-if(option==DEL){
-    if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
-        strcpy(name_list[index].filename,"");
-        fname_to_hv[index].key=-1;
-        printf("Delete file [%s]\n",relfilename);
+    /*---------------read map file----------------*/
+    if(ReadMapFile(map_path,OFF)==0){
+        map_file = open(map_path,O_WRONLY);
+        if(CheckFile(map_file,map_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
-    else{ 
-        printf("file [%s] doesn't exist.\n",relfilename);
+    else{
+        map_file = open(map_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(map_file,map_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
-    WriteAll(index_file,map_file,ini_file,name_file);
-    return 0;
-}
-
-////------------------------------------------------////
-/*                  Rename file                       */
-////------------------------------------------------////
-if(option==RENAME){
-    if(strcmp(newfilename,"")==0){
-        printf("New filename?\n");
-        msg();
+    /*---------------read fname file----------------*/
+    if(ReadNameFile(name_path,OFF)==0){
+        name_file = open(name_path,O_WRONLY);
+        if(CheckFile(name_file,name_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
-    unsigned long int index,key,hv;
-
-    if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){
-        printf("rename file [%s] to ",relfilename);
-        strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
-        printf("[%s]\n",relfilename);
-
-        strcpy(name_list[index].filename,"");
-        key = fname_to_hv[index].key;
-        fname_to_hv[index].key=-1;
-
-        hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
-        index = hv % BUCKETNUMBER;
-        strcpy(name_list[index].filename,relfilename);
-        fname_to_hv[index].key = key;
+    else{
+        name_file = open(name_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(name_file,name_path)==1){
+            WriteAll(index_file,map_file,ini_file,name_file);
+            //return 0;
+            exit(1);
+        }
     }
-    else{ 
-        printf("file [%s] doesn't exist.\n",relfilename);
+    ////------------------------------------------------////
+    /*   Check if filename exist, and rename for import   */
+    /*   status(3) or get the file(1 or 2 )               */
+    ////------------------------------------------------////
+    /*separate real file name*/
+    /*
+    if(option!=LIST&&option!=DETAIL){
+        char *delim="/";
+        char *p[FILENAMELENS];
+        cnt=0;
+        p[cnt] = strtok(relfilename,delim);
+        //printf("[%d]%s\n",cnt-1,p[cnt-1]);
+        while(p[cnt]){
+            //printf("[%d]%s\n",cnt,p[cnt]);
+            p[++cnt]=(strtok(NULL,delim));
+            //cnt++;
+        }
+        strcpy(relfilename,p[cnt-1]);
     }
-    WriteAll(index_file,map_file,ini_file,name_file);
-    return 0;
-}
+    */
+    //GET:download file use orign name
+    //GET & RENAME:download file use refer name(newfilename)
+    //PUT:just for check filename exists or not(import status)
+    if(option==PUT||option==GET){
+        /*
+        if(option==PUT&&strcmp(newfilename,"")!=0){
+            strcpy(relfilename,"");
+            strcpy(relfilename,newfilename);
+            strcpy(newfilename,"");
+        }
+        */
+        if(GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path)!=0){//if this filename exists
+            if(option==PUT){
+                printf("filename [%s] exists,",relfilename);
+                strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
+                printf("so will rename to [%s]\n",relfilename);
+            }
+            else if(option==GET){
+                WriteAll(index_file,map_file,ini_file,name_file);
+                return 0;   
+            }    
+        }
+    }
+    ////------------------------------------------------////
+    /*                      PutFile                       */
+    ////------------------------------------------------////
+    if(option==PUT){
+        if(PutFile(filename,relfilename,index_file,map_file,ini_file,name_file,path,newfilename)==0){//success import
+            printf("Import Success.\n");
+        }
+        else{
+            printf("Nothing import.\n");
+        }
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 0;
+    }
+    ////------------------------------------------------////
+    /*  Delete file, will not really delete data from     */
+    /*  db file, but will delete from map and name file.  */
+    /*  So, if next time, when content that had been      */
+    /*  imported before be imported again, will show      */
+    /*  content exists.                                   */
+    ////------------------------------------------------////
+    if(option==DEL){
+        if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
+            strcpy(name_list[index].filename,"");
+            fname_to_hv[index].key=-1;
+            printf("Delete file [%s]\n",relfilename);
+        }
+        else{ 
+            printf("file [%s] doesn't exist.\n",relfilename);
+        }
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 0;
+    }
 
-////------------------------------------------------////
-/*      List:Check data import successfuly or not     */
-////------------------------------------------------////
-if(option==DETAIL){
-    ReadIndexFile(index_path,ON);     
-    ReadMapFile(map_path,ON);     
-}
-else if(option==LIST){
-    ReadNameFile(name_path,ON);     
-}
+    ////------------------------------------------------////
+    /*                  Rename file                       */
+    ////------------------------------------------------////
+    if(option==RENAME){
+        if(strcmp(newfilename,"")==0){
+            printf("New filename?\n");
+            msg();
+        }
+        unsigned long int index,key,hv;
 
-close(index_file);
-close(map_file);
-close(name_file);
-close(ini_file);
+        if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){
+            printf("rename file [%s] to ",relfilename);
+            strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
+            printf("[%s]\n",relfilename);
+
+            strcpy(name_list[index].filename,"");
+            key = fname_to_hv[index].key;
+            fname_to_hv[index].key=-1;
+
+            hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
+            index = hv % BUCKETNUMBER;
+            strcpy(name_list[index].filename,relfilename);
+            fname_to_hv[index].key = key;
+        }
+        else{ 
+            printf("file [%s] doesn't exist.\n",relfilename);
+        }
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 0;
+    }
+
+    ////------------------------------------------------////
+    /*      List:Check data import successfuly or not     */
+    ////------------------------------------------------////
+    if(option==DETAIL){
+        ReadIndexFile(index_path,ON);     
+        ReadMapFile(map_path,ON);     
+    }
+    else if(option==LIST){
+        ReadNameFile(name_path,ON);     
+    }
+
+    close(index_file);
+    close(map_file);
+    close(name_file);
+    close(ini_file);
 #endif
-return 0;
+    return 0;
 }
 
 
@@ -472,6 +490,13 @@ void GetFileId(char *path){
 }
 
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
+    
+    char temp[FILENAMELENS];
+    char contentType[1024];
+    int got;
+    FILE *fp;
+    cgiFilePtr file;
+
     unsigned char *data;
     unsigned long int filesize;
     int data_file,db_file;
@@ -480,35 +505,11 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     int offset;
     int option;
     unsigned long int index_record,index_map,index,hv;
+    data = malloc(sizeof(unsigned char)*filesize);
+    
     if(option==PUT&&strcmp(newfilename,"")!=0){
         strcpy(relfilename,"");
         strcpy(relfilename,newfilename);
-    }
-    data_file = open(filename,O_RDONLY|O_EXCL);
-
-    if(CheckFile(data_file,filename)==1){
-        WriteAll(index_file,map_file,ini_file,name_file);
-        return 1;
-    }
-
-    filesize = GetFileSize(data_file);
-    data = malloc(sizeof(unsigned char)*filesize);
-    read(data_file,data,sizeof(unsigned char)*filesize);
-    close(data_file);
-    printf("read:%s\tsize:%lu\n",filename,filesize);
-    hv=0;
-    hv = Gethv(data,filesize);
-    index_record = hv % BUCKETNUMBER;
-    //ckeck file content, if exist then ask to cover existing file or ignore this import action
-    if(records[index_record].key==hv){
-        printf("file [%s] content  exist!\n",relfilename);
-        //only store map
-        hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
-        index_map = hv % BUCKETNUMBER;
-        strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-        fname_to_hv[index_map].key = index_record;
-        WriteAll(index_file,map_file,ini_file,name_file);
-        return 1;
     }
 
     //read db to get current offset, and get filesize
@@ -520,32 +521,100 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     }
     offset = GetOffset(db_file);
 
+    //filename
+    fprintf(cgiOut, "The filename submitted was: ");
+    cgiHtmlEscape(relfilename);
+    //sprintf(temp,"touch ./data/%s",relfilename);
+    //system(temp);
+
+
+    fprintf(cgiOut, "<p>\n");
+    //file size
+    cgiFormFileSize("file", &len);
+    fprintf(cgiOut, "The file size was: %d bytes<p>\n", len);
+    //content type
+    cgiFormFileContentType("file", contentType, sizeof(contentType));
+    fprintf(cgiOut, "The alleged content type of the file was: ");
+    cgiHtmlEscape(contentType);
+    fprintf(cgiOut, "<p>\n");
+    //ckeck download file
+    if (cgiFormFileOpen("file", &file) != cgiFormSuccess) {
+        fprintf(cgiOut, "Could not open the file.<p>\n");
+        return 1;
+    }
+    fprintf(cgiOut, "<pre>\n");
+
+    fprintf(cgiOut,"read:%s\tsize:%d\n",filename,len);
+
     //if current file offset + data size > DBFILESIZE, then open a new file(file_n) to store data
-    if(offset+filesize>dbini[0].MAXDBFILESIZE){
-        printf("[offset:%d,size:%lu->limit %ld size]\n",offset,filesize,dbini[0].MAXDBFILESIZE);
+    if(offset+len>dbini[0].MAXDBFILESIZE){
+        fprintf(cgiOut,"[offset:%d,size:%d->limit %ld size]\n",offset,len,dbini[0].MAXDBFILESIZE);
         if(dbini[0].CURFILEID+1>=dbini[0].DBFILENUM){
-            printf("[X] Max File num is %d, current file num is %d\n",dbini[0].DBFILENUM,dbini[0].CURFILEID+1);
+            fprintf(cgiOut,"[X] Max File num is %d, current file num is %d\n",dbini[0].DBFILENUM,dbini[0].CURFILEID+1);
             WriteAll(index_file,map_file,ini_file,name_file);
             return 1;
         }
         else{
-            printf("file [%d] is full, now open file [%d]\n",dbini[0].CURFILEID,dbini[0].CURFILEID+1);
+            fprintf(cgiOut,"file [%d] is full, now open file [%d]\n",dbini[0].CURFILEID,dbini[0].CURFILEID+1);
             dbini[0].CURFILEID = dbini[0].CURFILEID+1;
             offset=0;
         }
         write(ini_file,dbini,sizeof(Config)*DBININUM);
         GetFileId(path);
         close(db_file);
-        db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU|S_IRGRP);
+        //db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU|S_IRGRP);
         if(CheckFile(db_file,db_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
             return 1;
         }
     }   
+    close(db_file);
+
+    //fwrite to db
+    fp=fopen(db_path,"ab");
+
+    while (cgiFormFileRead(file, data, sizeof(data), &got) == cgiFormSuccess) 
+    { 
+        fwrite(data,1,got,fp);
+    }
+    fclose(fp);
+    fprintf(cgiOut, "</pre>\n");
+    cgiFormFileClose(file);
+
+    //old
+    /*
+    data_file = open(filename,O_RDONLY|O_EXCL);
+
+    if(CheckFile(data_file,filename)==1){
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 1;
+    }
+
+    filesize = GetFileSize(data_file);
+
+    read(data_file,data,sizeof(unsigned char)*filesize);
+    close(data_file);
+    */
+
+    hv=0;
+    hv = Gethv(data,len);
+    index_record = hv % BUCKETNUMBER;
+    //ckeck file content, if exist then ask to cover existing file or ignore this import action
+    if(records[index_record].key==hv){
+        printf("file [%s] content  exist!</br>",relfilename);
+        //only store map
+        hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
+        index_map = hv % BUCKETNUMBER;
+        strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+        fname_to_hv[index_map].key = index_record;
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 1;
+    }
+
     //store into index
     records[index_record].key = hv;
     records[index_record].file_id = dbini[0].CURFILEID;
-    records[index_record].size = filesize;
+    records[index_record].size = len;
     records[index_record].offset = offset;
 
     //store map
@@ -557,10 +626,11 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
 
     //fwrite to db
-    write(db_file,data,sizeof(char)*filesize);
-    close(db_file);
+    //write(db_file,data,sizeof(char)*len);
+    //close(db_file);
 
     WriteAll(index_file,map_file,ini_file,name_file);
+
     return 0;
 }
 
@@ -577,11 +647,11 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     //if(strcmp(fname_to_hv[index].filename,filename)==0){
     if(fname_to_hv[index].key!=-1&&fname_to_hv[index].key!=0){
         if(option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
-            printf("(filename [%s] exist!)\n",filename);
+            printf("(filename [%s] exist!)</br>",filename);
             return index;
         }
         index_record = fname_to_hv[index].key;
-        printf("get file index [%d]:file [%d] %u\t%d\t%d\n",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
+        printf("get file index [%d]:file [%d] %u&#09;%d&#09;%d</br>",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
 
         sprintf(db_path,"%s%d",path,records[index_record].file_id);
         db_file = open(db_path,O_RDONLY);
@@ -598,7 +668,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
                 strcpy(filename,newfilename);
             }
             sprintf(result_path,"%s%s",result_path,filename);
-            printf("download file [%s]\n",result_path);
+            printf("download file [%s]</br>",result_path);
         }
 
         result = open(result_path,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP|S_IROTH);
@@ -618,7 +688,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
                 strcpy(filename,newfilename);
             }
         }
-        printf("(filename %s doesn't exist!)\n",filename);
+        printf("(filename %s doesn't exist!)</br>",filename);
         return 0;
     }
 }
@@ -670,9 +740,9 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
 }
 int CheckFile(int fd,char *filename){
     if(fd<0){
-        printf("Opening file %s: Failed\n",filename);
-        printf ("Error no is : %d\n", errno);
-        printf("Error description is : %s\n",strerror(errno));
+        printf("Opening file %s: Failed</br>",filename);
+        printf ("Error no is : %d</br>", errno);
+        printf("Error description is : %s</br>",strerror(errno));
         return 1;
     }
     return 0;
@@ -686,7 +756,7 @@ int ReadIniFile(char *filename,int option){
         if(option==ON){
             for(cnt=0;cnt<DBININUM;cnt++){
                 if(dbini[cnt].DBFILENUM!=0){
-                    printf("dbini file->DBFILENUM:%d\tMAXDBFILESIZE:%ld\tCURFILEID:%d\n",dbini[cnt].DBFILENUM,dbini[cnt].MAXDBFILESIZE,dbini[cnt].CURFILEID);
+                    printf("dbini file->DBFILENUM:%d&#09;/MAXDBFILESIZE:%ld&#09;CURFILEID:%d</br>",dbini[cnt].DBFILENUM,dbini[cnt].MAXDBFILESIZE,dbini[cnt].CURFILEID);
                 }
             }
         }
@@ -694,7 +764,7 @@ int ReadIniFile(char *filename,int option){
         return 0;
     }
     else{
-        printf("Init %s\n",filename);
+        printf("Init %s</br>",filename);
         close(index_file);
         return 1;
     }
@@ -708,7 +778,7 @@ int ReadIndexFile(char *filename,int option){
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(records[cnt].key!=0){
-                    printf("[%d]index file:%u\t%d\t%d\t%d\n",cnt,records[cnt].key,records[cnt].file_id,records[cnt].offset,records[cnt].size);
+                    printf("[%d]index file:%u&#09;%d&#09;%d&#09;%d</br>",cnt,records[cnt].key,records[cnt].file_id,records[cnt].offset,records[cnt].size);
                 }
             }
         }
@@ -716,7 +786,7 @@ int ReadIndexFile(char *filename,int option){
         return 0;
     }
     else{
-        printf("Init %s\n",filename);
+        printf("Init %s</br>",filename);
         close(index_file);
         return 1;
     }
@@ -730,8 +800,7 @@ int ReadMapFile(char *filename, int option){
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(fname_to_hv[cnt].key!=0&&fname_to_hv[cnt].key!=-1){
-                    //printf("[%d]map file:%s->%d\n",cnt,filename,fname_to_hv[cnt].key);
-                    printf("[%d]map file:key:%d\n",cnt,fname_to_hv[cnt].key);
+                    printf("[%d]map file:key:%d</br>",cnt,fname_to_hv[cnt].key);
                 }
             }
         }
@@ -739,7 +808,7 @@ int ReadMapFile(char *filename, int option){
         return 0;
     }
     else{
-        printf("Init %s\n",filename);
+        printf("Init %s</br>",filename);
         close(index_file);
         return 1;
     }
@@ -753,15 +822,15 @@ int ReadNameFile(char *filename, int option){
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(strcmp(name_list[cnt].filename,"")!=0){
-                    printf("[%d]Filename:%s\n",cnt,name_list[cnt].filename);
+                    printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
                 }
             }
         }
         close(index_file);
-        return 0;
+        return 0;   
     }
     else{
-        printf("Init %s\n",filename);
+        printf("Init %s</br>",filename);
         close(index_file);
         return 1;
     }
