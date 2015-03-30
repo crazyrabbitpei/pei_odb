@@ -6,6 +6,7 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include <errno.h>
+#include<time.h>
 #include "cgic.h" 
 #define FILENAMELENS 50
 #define BUCKETNUMBER 1000000
@@ -121,66 +122,75 @@ int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
     int index_file,map_file,ini_file,name_file;
-    char filename[FILENAMELENS]="",relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="";
+    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="";
     int option=-1,cnt,index;
     char path[100]="./db/file_";
 
-    ////------------------------------------------------////
-    /*                   CGI                              */
-    ////------------------------------------------------////
 #if 1
-    //TODO : parse http header to get file's content, name,type....
     char command[10],*cm;
     char *method;
     int len;
     int m,n;
     int output,data_file;
+    char date[50];
     char *input, *data;
+    char *wday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    time_t timep;
+    struct tm *p;
+    time(&timep);
+    p=gmtime(&timep);
+    sprintf(date,"./log/%d%d%d_%d%d%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
 
     input = malloc(sizeof(char)*DATASIZE);
     data = malloc(sizeof(char)*DATASIZE);
 
-    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
-    printf("<title>pei_odb</title>\n");
-    
+    //printf("date:%s</br>",date);
     //check method
     method = getenv("REQUEST_METHOD");
-    fprintf(cgiOut,"<p>method:%s</p>",method);
-    //query
-    //cm = getenv("QUERY_STRING");//for GET
-    //sscanf(cm,"command=%s",command);
-    if(cgiFormString("command", command, sizeof(command))==cgiFormNotFound){
-        printf("<p>Command [%s] doesn't exist!</p>",command);
-    }
-
-    fprintf(cgiOut,"<p>command:%s</p>",command);
+    //fprintf(cgiOut,"<p>method:%s</p>",method);
     ////------------------------------------------------////
     /*                   Command  detect                  */
     ////------------------------------------------------////
+    //check query
+    if(cgiFormString("command", command, sizeof(command))==cgiFormNotFound){
+         printf("<p>Command [%s] doesn't exist!</p>",command);
+         return 1;
+    }
+
     if(strcmp(command,"PUT")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=PUT;
     }
     else if(strcmp(command,"GET")==0){
         option=GET;
+        //printf("%s%c%c\n","Content-Type:applocation/octet-stream",13,10);
+        if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+        }
     }
     else if(strcmp(command,"LIST")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=LIST;
     }
     else if(strcmp(command,"DETAIL")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option = DETAIL;
     }
     else if(strcmp(command,"DEL")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=DEL;
     }
     else if(strcmp(command,"RENAME")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=RENAME;
     }
     else{
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         fprintf(cgiOut, "<p>Illegal option:[%s]</p>", command);
     }
 
     if(option==PUT||option==GET||option==RENAME||option==DEL){
-        if(cgiFormFileName("file", filename, sizeof(filename)) != cgiFormSuccess){
+        if(option!=GET&&cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
             fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
             return 1;
         }
@@ -520,25 +530,23 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         return 1;
     }
     offset = GetOffset(db_file);
-
+    //TODO file size over 50kb will broken
     //filename
     fprintf(cgiOut, "The filename submitted was: ");
     cgiHtmlEscape(relfilename);
     //sprintf(temp,"touch ./data/%s",relfilename);
     //system(temp);
-
-
     fprintf(cgiOut, "<p>\n");
     //file size
-    cgiFormFileSize("file", &len);
+    cgiFormFileSize("filename", &len);
     fprintf(cgiOut, "The file size was: %d bytes<p>\n", len);
     //content type
-    cgiFormFileContentType("file", contentType, sizeof(contentType));
+    cgiFormFileContentType("filename", contentType, sizeof(contentType));
     fprintf(cgiOut, "The alleged content type of the file was: ");
     cgiHtmlEscape(contentType);
     fprintf(cgiOut, "<p>\n");
     //ckeck download file
-    if (cgiFormFileOpen("file", &file) != cgiFormSuccess) {
+    if (cgiFormFileOpen("filename", &file) != cgiFormSuccess) {
         fprintf(cgiOut, "Could not open the file.<p>\n");
         return 1;
     }
@@ -640,7 +648,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     int cnt;
     char *data;
     int db_file,result,index_file,map_file;
-
+#if 1
     //printf("1.GetFilename:%s\n",filename);
     hv = Gethv((unsigned char *)filename,(unsigned long int)size);
     index = hv % BUCKETNUMBER;
@@ -651,7 +659,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
             return index;
         }
         index_record = fname_to_hv[index].key;
-        printf("get file index [%d]:file [%d] %u&#09;%d&#09;%d</br>",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
+        //printf("get file index [%d]:file [%d] %u&#09;%d&#09;%d</br>",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
 
         sprintf(db_path,"%s%d",path,records[index_record].file_id);
         db_file = open(db_path,O_RDONLY);
@@ -668,17 +676,23 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
                 strcpy(filename,newfilename);
             }
             sprintf(result_path,"%s%s",result_path,filename);
-            printf("download file [%s]</br>",result_path);
+            //printf("download file [%s]</br>",result_path);
         }
-
+        printf("%s%c%c","Content-Type: application/octet-stream",13,10);
+        printf("%s%c%c","Content-Type:application/x-download",13,10);
+        printf("%s%s%c%c","Content-Disposition: attachment;filename=",filename,13,10);
+        fprintf(cgiOut,"Content-Length: %d\n\n",records[index_record].size);
+        fwrite(data,sizeof(char),records[index_record].size,stdout);
+        /*
         result = open(result_path,O_WRONLY|O_CREAT|O_TRUNC,S_IRWXU|S_IRGRP|S_IROTH);
         if(CheckFile(result,result_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
             return 1;
         }
         write(result,data,sizeof(char)*records[index_record].size);
+        */
         close(db_file);
-        close(result);
+        //close(result);
         return 1;
     }
     else{
@@ -691,7 +705,9 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
         printf("(filename %s doesn't exist!)</br>",filename);
         return 0;
     }
+#endif
 }
+
 char *Rename(char *filename,int option,int ini_file,int name_file,char *path,char *newfilename){
     char *new;
     char *delim=".";
@@ -822,7 +838,8 @@ int ReadNameFile(char *filename, int option){
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(strcmp(name_list[cnt].filename,"")!=0){
-                    printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                    //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                    printf("%s</br>",name_list[cnt].filename);
                 }
             }
         }
