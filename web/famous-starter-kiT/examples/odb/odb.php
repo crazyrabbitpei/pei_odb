@@ -9,6 +9,7 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <link rel="stylesheet" type="text/css" href="../../src/core/famous.css" />
         <link rel="stylesheet" type="text/css" href="../assets/css/famous_styles.css" />
+        <link rel="stylesheet" type="text/css" href="./css/style.css" />
     </head>
     <body>
     <?php
@@ -27,7 +28,18 @@
     </FORM>
     <form method="post" id="post_form" style="visibility:hidden;" action="<?php echo $value; ?>">
         <input type="hidden" id="command" name="command" value="GET">
-        <input type="hidden" id="filename" name="filename" value="">
+        <input type="hidden" id="post_filename" name="filename" value="">
+        <input type="submit" value="Submit">
+    </form>
+    <form method="post" id="del_form" style="visibility:hidden;" action="<?php echo $value; ?>">
+        <input type="hidden" id="command" name="command" value="DEL">
+        <input type="hidden" id="del_filename" name="filename" value="">
+        <input type="submit" value="Submit">
+    </form>
+    <form method="post" id="re_form" style="visibility:hidden;" action="<?php echo $value; ?>">
+        <input type="hidden" id="command" name="command" value="RENAME">
+        <input type="hidden" id="o_filename" name="filename" value="">
+        <input type="hidden" id="re_filename" name="newfilename" value="">
         <input type="submit" value="Submit">
     </form>
 

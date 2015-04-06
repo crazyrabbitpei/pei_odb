@@ -1,2 +1,2 @@
-gcc -o odb.cgi odb.c libcgic.a
+gcc -o odb.cgi odb.c libcgic.a -lcrypto
 

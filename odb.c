@@ -5,6 +5,7 @@
 #include<sys/stat.h>
 #include<fcntl.h>
 #include<unistd.h>
+#include <openssl/md5.h>
 #include <errno.h>
 #include<time.h>
 #include "cgic.h" 
@@ -88,7 +89,7 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
    void DeleteFile();
  */
 Config dbini[DBININUM];
-detail records[BUCKETNUMBER];
+detail records[BUCKETNUMBER]={-1};
 map fname_to_hv[BUCKETNUMBER]={-1};
 name name_list[BUCKETNUMBER]={""};
 
@@ -166,6 +167,7 @@ int cgiMain()
         //printf("%s%c%c\n","Content-Type:applocation/octet-stream",13,10);
         if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
              printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             return 1;
         }
     }
     else if(strcmp(command,"LIST")==0){
@@ -179,23 +181,37 @@ int cgiMain()
     else if(strcmp(command,"DEL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=DEL;
+        if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>DEL:Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
     }
     else if(strcmp(command,"RENAME")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=RENAME;
+        if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>RENAME:Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("newfilename", newfilename, sizeof(newfilename))==cgiFormNotFound){
+            printf("New filename?\n");
+            return 1;
+        }
     }
     else{
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         fprintf(cgiOut, "<p>Illegal option:[%s]</p>", command);
+        return 1;
     }
 
-    if(option==PUT||option==GET||option==RENAME||option==DEL){
-        if(option!=GET&&cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
+    if(option==PUT){
+        if(cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
             fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
             return 1;
         }
-        strcpy(relfilename,filename);
+        //strcpy(relfilename,filename);
     }
+    strcpy(relfilename,filename);
 /*
     int choice;
     cnt=0;
@@ -276,7 +292,7 @@ int cgiMain()
         dbini[0].DBFILENUM=10;
         dbini[0].MAXDBFILESIZE=DATASIZE;
         dbini[0].CURFILEID=0;
-        ReadIniFile(config_path,ON);
+        ReadIniFile(config_path,OFF);
         write(ini_file,dbini,sizeof(Config)*DBININUM);
         GetFileId(path);
     }
@@ -296,6 +312,10 @@ int cgiMain()
             //return 0;
             exit(1);
         }
+        for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+            records[cnt].key=-1;
+        }
+        write(index_file,records,sizeof(detail)*BUCKETNUMBER);
     }
     /*---------------read map file----------------*/
     if(ReadMapFile(map_path,OFF)==0){
@@ -313,6 +333,10 @@ int cgiMain()
             //return 0;
             exit(1);
         }
+        for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+            fname_to_hv[cnt].key=-1;
+        }
+        write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     }
     /*---------------read fname file----------------*/
     if(ReadNameFile(name_path,OFF)==0){
@@ -330,6 +354,7 @@ int cgiMain()
             //return 0;
             exit(1);
         }
+
     }
     ////------------------------------------------------////
     /*   Check if filename exist, and rename for import   */
@@ -493,6 +518,7 @@ int GetFileSize(int file){
     return len;
 }
 unsigned long int Gethv(unsigned char *data,unsigned long int size){
+    //return 0;
     return hash33(data,size);
 }
 void GetFileId(char *path){
@@ -515,7 +541,6 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     int offset;
     int option;
     unsigned long int index_record,index_map,index,hv;
-    data = malloc(sizeof(unsigned char)*filesize);
     
     if(option==PUT&&strcmp(newfilename,"")!=0){
         strcpy(relfilename,"");
@@ -578,6 +603,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     }   
     close(db_file);
 
+    data = malloc(sizeof(unsigned char)*len);
     //fwrite to db
     fp=fopen(db_path,"ab");
 
@@ -606,10 +632,13 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     hv=0;
     hv = Gethv(data,len);
+    printf("hv:%ld</br>",hv);
+#if 1
     index_record = hv % BUCKETNUMBER;
     //ckeck file content, if exist then ask to cover existing file or ignore this import action
-    if(records[index_record].key==hv){
+    if(records[index_record].key!=-1&&records[index_record].key==hv){
         printf("file [%s] content  exist!</br>",relfilename);
+        printf("records[%ld].key:%d=%ld</br>",index_record,records[index_record].key,hv);
         //only store map
         hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
         index_map = hv % BUCKETNUMBER;
@@ -618,13 +647,14 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         WriteAll(index_file,map_file,ini_file,name_file);
         return 1;
     }
-
+    printf("write to index</br>");
     //store into index
     records[index_record].key = hv;
     records[index_record].file_id = dbini[0].CURFILEID;
     records[index_record].size = len;
     records[index_record].offset = offset;
 
+    printf("write to map</br>");
     //store map
     hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
     index_map = hv % BUCKETNUMBER;
@@ -633,10 +663,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     //store name list
     strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
 
-    //fwrite to db
-    //write(db_file,data,sizeof(char)*len);
-    //close(db_file);
-
+#endif
     WriteAll(index_file,map_file,ini_file,name_file);
 
     return 0;
@@ -653,7 +680,7 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     hv = Gethv((unsigned char *)filename,(unsigned long int)size);
     index = hv % BUCKETNUMBER;
     //if(strcmp(fname_to_hv[index].filename,filename)==0){
-    if(fname_to_hv[index].key!=-1&&fname_to_hv[index].key!=0){
+    if(fname_to_hv[index].key!=-1){
         if(option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
             printf("(filename [%s] exist!)</br>",filename);
             return index;
@@ -780,7 +807,9 @@ int ReadIniFile(char *filename,int option){
         return 0;
     }
     else{
-        printf("Init %s</br>",filename);
+        if(option==ON){
+            printf("Init %s</br>",filename);
+        }
         close(index_file);
         return 1;
     }
@@ -793,7 +822,7 @@ int ReadIndexFile(char *filename,int option){
         read(index_file,records,sizeof(detail)*BUCKETNUMBER);
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                if(records[cnt].key!=0){
+                if(records[cnt].key!=-1){
                     printf("[%d]index file:%u&#09;%d&#09;%d&#09;%d</br>",cnt,records[cnt].key,records[cnt].file_id,records[cnt].offset,records[cnt].size);
                 }
             }
@@ -802,7 +831,10 @@ int ReadIndexFile(char *filename,int option){
         return 0;
     }
     else{
-        printf("Init %s</br>",filename);
+        if(option==ON){
+            printf("Init %s</br>",filename);
+        }
+
         close(index_file);
         return 1;
     }
@@ -815,7 +847,7 @@ int ReadMapFile(char *filename, int option){
         read(index_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                if(fname_to_hv[cnt].key!=0&&fname_to_hv[cnt].key!=-1){
+                if(fname_to_hv[cnt].key!=-1){
                     printf("[%d]map file:key:%d</br>",cnt,fname_to_hv[cnt].key);
                 }
             }
@@ -824,7 +856,9 @@ int ReadMapFile(char *filename, int option){
         return 0;
     }
     else{
-        printf("Init %s</br>",filename);
+        if(option==ON){
+            printf("Init %s</br>",filename);
+        }
         close(index_file);
         return 1;
     }
@@ -847,16 +881,19 @@ int ReadNameFile(char *filename, int option){
         return 0;   
     }
     else{
-        printf("Init %s</br>",filename);
+        if(option==ON){
+            printf("Init %s</br>",filename);
+        }
         close(index_file);
         return 1;
     }
 }
 unsigned long int hash33(unsigned char *key,unsigned long int size)
 {
+    //TODO : hv always have 0?
     unsigned char *ptr = key;
-    unsigned int hv = 0;
-    int cnt=0;
+    unsigned long int hv = 0;
+    unsigned long int cnt=0;
     while(cnt<size){
         hv = ((hv << 5) + hv) + *ptr;//2^5+1=33
         ptr++;
