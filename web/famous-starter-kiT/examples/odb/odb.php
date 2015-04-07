@@ -51,13 +51,15 @@
     <script type="text/javascript" src="../assets/lib/requestAnimationFrame.js"></script>
     <script type="text/javascript" src="../assets/lib/require.js"></script>
     <script type="text/javascript">
+
     require.config({
         paths: {
         famous: '../../src'
         }
     });
     require(['fam_test']);
-    </script>
 
+    </script>
+    
     </body>
 </html>
