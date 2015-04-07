@@ -1329,8 +1329,8 @@ cgiFormResultType cgiFormFileRead(
 	if (!cfp) {
 		return cgiFormOpenFailed;
 	}
-	got = fread(buffer, 1073741824, bufferSize, cfp->in);
-	//got = fread(buffer, 1, bufferSize, cfp->in);
+	//got = fread(buffer, sizeof(char), bufferSize, cfp->in);
+	got = fread(buffer, 1, bufferSize, cfp->in);
 	if (got <= 0) {
 		return cgiFormEOF;
 	}

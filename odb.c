@@ -605,16 +605,14 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     data = malloc(sizeof(unsigned char)*len);
     //fwrite to db
+    //cgic method
     fp=fopen(db_path,"ab");
-
-    while (cgiFormFileRead(file, data, sizeof(data), &got) == cgiFormSuccess) 
+    while (cgiFormFileRead(file, data, sizeof(unsigned char)*len, &got) == cgiFormSuccess) 
     { 
         fwrite(data,1,got,fp);
     }
     fclose(fp);
-    fprintf(cgiOut, "</pre>\n");
     cgiFormFileClose(file);
-
     //old
     /*
     data_file = open(filename,O_RDONLY|O_EXCL);
@@ -632,8 +630,8 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     hv=0;
     hv = Gethv(data,len);
-    printf("hv:%ld</br>",hv);
 #if 1
+    printf("hv:%ld</br>",hv);
     index_record = hv % BUCKETNUMBER;
     //ckeck file content, if exist then ask to cover existing file or ignore this import action
     if(records[index_record].key!=-1&&records[index_record].key==hv){
@@ -662,7 +660,6 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     //store name list
     strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-
 #endif
     WriteAll(index_file,map_file,ini_file,name_file);
 
@@ -890,7 +887,7 @@ int ReadNameFile(char *filename, int option){
 }
 unsigned long int hash33(unsigned char *key,unsigned long int size)
 {
-    //TODO : hv always have 0?
+    //TODO : when word or ppt file is too old(97~2004)hv always have 0?
     unsigned char *ptr = key;
     unsigned long int hv = 0;
     unsigned long int cnt=0;
