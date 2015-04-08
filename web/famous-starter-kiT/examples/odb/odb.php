@@ -19,6 +19,7 @@
     // Close the file that no longer in use
     fclose($file);
     ?>
+    <!--
     <FORM id="form1" METHOD="POST" ACTION="<?php echo $value; ?>" enctype="multipart/form-data">
     Upload<input type="radio" name="command" value="PUT" />
     <INPUT TYPE="file" NAME="filename" VALUE=""></br>
@@ -26,6 +27,7 @@
     Detail<input type="radio" name="command" value="DETAIL" /></br>
     <INPUT TYPE="submit" VALUE="go">
     </FORM>
+    -->
     <form method="post" id="post_form" style="visibility:hidden;" action="<?php echo $value; ?>">
         <input type="hidden" id="command" name="command" value="GET">
         <input type="hidden" id="post_filename" name="filename" value="">
@@ -43,7 +45,6 @@
         <input type="submit" value="Submit">
     </form>
 
-    <div id='download'></div>
     <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
     <script type="text/javascript" src="../assets/lib/functionPrototypeBind.js"></script>
