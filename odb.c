@@ -31,7 +31,7 @@ typedef enum{
 
 typedef struct{
     /*index file format */
-    unsigned int key;
+    long int key;
     int file_id;
     int offset;
     int size;
@@ -45,6 +45,9 @@ typedef struct{
 typedef struct{
     /*just store filename*/
     char filename[FILENAMELENS];
+    int size;
+    char date[100];
+    char type[100];
 }name;
 
 typedef struct{
@@ -135,17 +138,11 @@ int cgiMain()
     int output,data_file;
     char date[50];
     char *input, *data;
-    char *wday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
-    time_t timep;
-    struct tm *p;
-    time(&timep);
-    p=gmtime(&timep);
-    sprintf(date,"./log/%d%d%d_%d%d%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
+
 
     input = malloc(sizeof(char)*DATASIZE);
     data = malloc(sizeof(char)*DATASIZE);
 
-    //printf("date:%s</br>",date);
     //check method
     method = getenv("REQUEST_METHOD");
     //fprintf(cgiOut,"<p>method:%s</p>",method);
@@ -422,6 +419,9 @@ int cgiMain()
     if(option==DEL){
         if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
             strcpy(name_list[index].filename,"");
+            strcpy(name_list[index].date,"");
+            strcpy(name_list[index].type,"");
+            name_list[index].size = 0;
             fname_to_hv[index].key=-1;
             printf("Delete file [%s]\n",relfilename);
         }
@@ -441,7 +441,9 @@ int cgiMain()
             msg();
         }
         unsigned long int index,key,hv;
-
+        char newdate[100];
+        char newtype[100];
+        int newsize=0;
         if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){
             printf("rename file [%s] to ",relfilename);
             strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
@@ -449,11 +451,20 @@ int cgiMain()
 
             strcpy(name_list[index].filename,"");
             key = fname_to_hv[index].key;
+            newsize = name_list[index].size;
+            strcpy(newdate,name_list[index].date);
+            strcpy(newtype,name_list[index].type);
+
             fname_to_hv[index].key=-1;
 
             hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
             index = hv % BUCKETNUMBER;
             strcpy(name_list[index].filename,relfilename);
+            strcpy(name_list[index].date,newdate);
+            strcpy(name_list[index].type,newtype);
+            name_list[index].size = newsize;
+
+
             fname_to_hv[index].key = key;
         }
         else{ 
@@ -532,7 +543,19 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     int got;
     FILE *fp;
     cgiFilePtr file;
-
+    
+    //char date[100];
+    char *wday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    time_t current_time;
+    struct tm *p;
+    char* date;
+    current_time = time(NULL);
+    date = ctime(&current_time);
+    /*
+    time(&timep);
+    p=gmtime(&timep);
+    sprintf(date,"%d%d%d%d%d%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
+    */
     unsigned char *data;
     unsigned long int filesize;
     int data_file,db_file;
@@ -569,6 +592,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     cgiFormFileContentType("filename", contentType, sizeof(contentType));
     fprintf(cgiOut, "The alleged content type of the file was: ");
     cgiHtmlEscape(contentType);
+
     fprintf(cgiOut, "<p>\n");
     //ckeck download file
     if (cgiFormFileOpen("filename", &file) != cgiFormSuccess) {
@@ -631,28 +655,32 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     hv=0;
     hv = Gethv(data,len);
 #if 1
-    printf("hv:%ld</br>",hv);
+    //printf("hv:%ld</br>",hv);
     index_record = hv % BUCKETNUMBER;
     //ckeck file content, if exist then ask to cover existing file or ignore this import action
+    //printf("key:%ld</br>",records[index_record].key);
     if(records[index_record].key!=-1&&records[index_record].key==hv){
         printf("file [%s] content  exist!</br>",relfilename);
-        printf("records[%ld].key:%d=%ld</br>",index_record,records[index_record].key,hv);
+        //printf("records[%ld].key:%ld=%ld</br>",index_record,records[index_record].key,hv);
         //only store map
         hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
         index_map = hv % BUCKETNUMBER;
         strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+        strcpy(name_list[index_map].date,date);
+        strcpy(name_list[index_map].type,contentType);
+        name_list[index_map].size = len;
         fname_to_hv[index_map].key = index_record;
         WriteAll(index_file,map_file,ini_file,name_file);
         return 1;
     }
-    printf("write to index</br>");
+    //printf("write to index</br>");
     //store into index
     records[index_record].key = hv;
     records[index_record].file_id = dbini[0].CURFILEID;
     records[index_record].size = len;
     records[index_record].offset = offset;
 
-    printf("write to map</br>");
+    //printf("write to map</br>");
     //store map
     hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
     index_map = hv % BUCKETNUMBER;
@@ -660,7 +688,11 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
 
     //store name list
     strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-#endif
+    strcpy(name_list[index_map].date,date);
+    strcpy(name_list[index_map].type,contentType);
+    name_list[index_map].size = len;
+
+  #endif
     WriteAll(index_file,map_file,ini_file,name_file);
 
     return 0;
@@ -820,7 +852,7 @@ int ReadIndexFile(char *filename,int option){
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(records[cnt].key!=-1){
-                    printf("[%d]index file:%u&#09;%d&#09;%d&#09;%d</br>",cnt,records[cnt].key,records[cnt].file_id,records[cnt].offset,records[cnt].size);
+                    printf("[%d]index file:%ld&#09;%d&#09;%d&#09;%d</br>",cnt,records[cnt].key,records[cnt].file_id,records[cnt].offset,records[cnt].size);
                 }
             }
         }
@@ -870,7 +902,7 @@ int ReadNameFile(char *filename, int option){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                 if(strcmp(name_list[cnt].filename,"")!=0){
                     //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                    printf("%s</br>",name_list[cnt].filename);
+                    printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
                 }
             }
         }
