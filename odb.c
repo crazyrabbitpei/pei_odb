@@ -9,7 +9,7 @@
 #include <errno.h>
 #include<time.h>
 #include "cgic.h" 
-#define FILENAMELENS 100
+#define FILENAMELENS 50
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
 #define READPER  1073741824//1 GB
@@ -26,7 +26,8 @@ typedef enum{
     DETAIL,
     DEL,
     //TODO : FIND (use GetFile & fname to find the files that contain keyword)
-    RENAME
+    RENAME,
+    FIND
 }command;
 
 typedef struct{
@@ -70,7 +71,7 @@ unsigned long int hash33(unsigned char *key,unsigned long int size);
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
 int ReadMapFile(char *filename,int option);
-int ReadNameFile(char *filename,int option);
+int ReadNameFile(char *filename,int option, int command, char *relfilename);
 
 void WriteAll(int index_file,int map_file,int ini_file,int name_file);
 int CheckFile(int fd,char *filename);
@@ -169,6 +170,14 @@ int cgiMain()
     else if(strcmp(command,"LIST")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=LIST;
+    }
+    else if(strcmp(command,"FIND")==0){
+    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=FIND;
+        if(cgiFormString("search", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
     }
     else if(strcmp(command,"DETAIL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -335,7 +344,7 @@ int cgiMain()
         write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     }
     /*---------------read fname file----------------*/
-    if(ReadNameFile(name_path,OFF)==0){
+    if(ReadNameFile(name_path,OFF,option,relfilename)==0){
         name_file = open(name_path,O_WRONLY);
         if(CheckFile(name_file,name_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
@@ -392,7 +401,8 @@ int cgiMain()
             else if(option==GET){
                 WriteAll(index_file,map_file,ini_file,name_file);
                 return 0;   
-            }    
+            }
+
         }
     }
     ////------------------------------------------------////
@@ -482,7 +492,13 @@ int cgiMain()
         ReadMapFile(map_path,ON);     
     }
     else if(option==LIST){
-        ReadNameFile(name_path,ON);     
+        ReadNameFile(name_path,ON,option,relfilename);     
+    }
+    else if(option==FIND){
+        if(ReadNameFile(name_path,ON,option,relfilename)==-1){
+            //printf("File [%s] doesn't exist.</br>",relfilename);
+        }     
+        return 0;
     }
 
     close(index_file);
@@ -710,8 +726,8 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     index = hv % BUCKETNUMBER;
     //if(strcmp(fname_to_hv[index].filename,filename)==0){
     if(fname_to_hv[index].key!=-1){
-        if(option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
-            printf("(filename [%s] exist!)</br>",filename);
+        if(option==FIND||option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
+            //printf("(filename [%s] exist!)</br>",filename);
             return index;
         }
         index_record = fname_to_hv[index].key;
@@ -892,17 +908,34 @@ int ReadMapFile(char *filename, int option){
         return 1;
     }
 }
-int ReadNameFile(char *filename, int option){
+int ReadNameFile(char *filename, int option, int command, char *relfilename){
     int index_file;
-    int cnt=0;
+    int cnt=0,num=0;
     index_file = open(filename,O_RDONLY);
     if(index_file>=0){
         read(index_file,name_list,sizeof(name)*BUCKETNUMBER);
         if(option==ON){
-            for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                if(strcmp(name_list[cnt].filename,"")!=0){
-                    //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                    printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+            if(command==LIST){
+                for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+                    if(strcmp(name_list[cnt].filename,"")!=0){
+                        //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                        printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                    }
+                }
+            }
+            //TODO : FIND COMMAND filter and web will use ajax
+            else if(command==FIND){
+                for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+                    if(strstr(name_list[cnt].filename,relfilename)!=0){
+                        num++;
+                        //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                        printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                    }
+                }
+                if(num==0){
+                    printf("-1,-1,-1,-1</br>");
+                    close(index_file);
+                    return -1;
                 }
             }
         }
