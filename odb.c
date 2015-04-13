@@ -9,7 +9,7 @@
 #include <errno.h>
 #include<time.h>
 #include "cgic.h" 
-#define FILENAMELENS 50
+#define FILENAMELENS 100
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
 #define READPER  1073741824//1 GB
@@ -43,7 +43,6 @@ typedef struct{
 } map;
 
 typedef struct{
-    /*just store filename*/
     char filename[FILENAMELENS];
     int size;
     char date[100];
@@ -465,6 +464,7 @@ int cgiMain()
             name_list[index].size = newsize;
 
 
+    /*just store filename*/
             fname_to_hv[index].key = key;
         }
         else{ 
