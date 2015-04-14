@@ -20,7 +20,7 @@ define(function(require, exports, module) {
 
     var mainContext = Engine.createContext();
     var scrollview = new Scrollview();
-
+    var page=1;
     var layout = new HeaderFooterLayout({
                 headerSize: 120,
                 //footerSize: 50,
@@ -98,17 +98,17 @@ define(function(require, exports, module) {
         origin: [0, 0.1],
         align: [0, 0.5],
     });
-    //TODO : search results havn't display on website, only on console.log
     layout.header.add(searchModifier).add(search_input);//commit for hidden
     search_input.on('keyup',function(e){
+        page=1;
         word = $("input[name='search_input']").val();
         if(word!=''){
-            if(createFileBlock("FIND","POST","4","4",word,"normal")==0){
+            if(createFileBlock("FIND","POST","4","4",word,"normal",page)==0){
                 $(".nothing").remove();
             }
         }
         else{
-            createFileBlock("LIST","POST","4","4","","normal");
+            createFileBlock("LIST","POST","4","4","","normal",page);
         }
     })
     /*
@@ -119,22 +119,67 @@ define(function(require, exports, module) {
             }    
     });
     */
-    $(document).ready(function(){
-        createFileBlock("LIST","POST","4","4","","normal");
 
+    Engine.on('keyup', function(e) {
+        //TODO : the page will over total page range
+            if(e.which == 40) {
+                page=page+1;
+                word = $("input[name='search_input']").val();
+                if(word!=""){
+                    createFileBlock("FIND","POST","4","4",word,"down",page,function(result){
+                        page = result;
+                    });
+                }
+                else{ 
+                    createFileBlock("LIST","POST","4","4","","down",page,function(result){
+                        page = result;
+                    });
+                }
+            }    
+            if(e.which == 38) {
+                page=page-1;
+                word = $("input[name='search_input']").val();
+                if(word!=""){
+                    createFileBlock("FIND","POST","4","4",word,"up",page,function(result){
+                            page = result;
+                    });
+                }
+                else{ 
+                    createFileBlock("LIST","POST","4","4","","up",page,function(result){
+                            page = result;
+                    });
+                }
+            }    
+    });
+    $(document).ready(function(){
+            createFileBlock("LIST","POST","4","4","","normal",page,function(result){
+                page = result;
+            });
     });
 
-function createFileBlock(command,method,row,column,sfilename,test){
-    $(".nothing").remove();
-    $(".file").remove();
+    function createFileBlock(command,method,row,column,sfilename,test,page,callback){
         $.ajax({
             'url':value,
-            'data': 'command='+command+'&search='+sfilename,
+            'data': 'command='+command+'&search='+sfilename+'&page='+page,
             'type': method,
             'success':function(data){
-                if(test=="normal"){
+                if(test!="demo"){
                     var arr = data.split("</br>");
                     console.log(arr);
+                    if(arr.length==1){
+                        if(test=="down"){
+                            page = page-1;
+                            callback(page);
+                            return ;
+                        }
+                        else if(test=="up"){
+                            page = page+1;
+                            callback(page);
+                            return;
+                        }
+                    }
+                    $(".nothing").remove();
+                    $(".file").remove();
                     if(arr[0]=="-1,-1,-1,-1"){
                         layout.content.add(new Surface({
                             size: [undefined, undefined],
@@ -149,14 +194,10 @@ function createFileBlock(command,method,row,column,sfilename,test){
                             }
                         }));
                         mainContext.add(layout);
-                        //TODO : back button not work
-                        $("#back").click(function(){
-                            console.log("back");
-                        });
                         return -1;
                     }
                 }
-                else{
+                else if(test=="demo"){
                     var arr=[];
                     for(i=0;i<=33;i++){
                         arr.push(i+","+i+","+i+","+i);
@@ -184,7 +225,7 @@ function createFileBlock(command,method,row,column,sfilename,test){
                 });
                 var filestate = new Surface({
                     size:[400,200],
-                    classes:['file'],
+                    classes:['state'],
                     properties:{
                         textAlign:"left",
                         padding:'20px',
@@ -330,12 +371,12 @@ function createFileBlock(command,method,row,column,sfilename,test){
             }
         });
     return 0;        
-}
+    }
 
 
-function search(word,callback){
+    function search(word,callback){
 
-}
+    }
 function NameBlock(container,mainContext,num,filename,add){
     var topl;
     var top2;

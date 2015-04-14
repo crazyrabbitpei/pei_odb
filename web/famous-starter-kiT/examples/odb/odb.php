@@ -10,6 +10,7 @@
         <link rel="stylesheet" type="text/css" href="../../src/core/famous.css" />
         <link rel="stylesheet" type="text/css" href="../assets/css/famous_styles.css" />
         <link rel="stylesheet" type="text/css" href="./css/style.css" />
+        <link type="text/css" rel="stylesheet" href="page/simplePagination.css"/>
     </head>
     <body>
     <?php
@@ -45,12 +46,16 @@
         <input type="submit" value="Submit">
     </form>
 
-    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <!--<script src="https://code.jquery.com/jquery-1.10.2.js"></script>-->
+    <script src="jquery/jquery-1.10.2.js"></script>
+    <script src="jquery/jquery.min.js"></script>
+    <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>-->
+
     <script type="text/javascript" src="../assets/lib/functionPrototypeBind.js"></script>
     <script type="text/javascript" src="../assets/lib/classList.js"></script>
     <script type="text/javascript" src="../assets/lib/requestAnimationFrame.js"></script>
     <script type="text/javascript" src="../assets/lib/require.js"></script>
+    <script type="text/javascript" src="page/jquery.simplePagination.js"></script>
     <script type="text/javascript">
 
     require.config({
@@ -59,8 +64,6 @@
         }
     });
     require(['fam_test']);
-
     </script>
-    
     </body>
 </html>
