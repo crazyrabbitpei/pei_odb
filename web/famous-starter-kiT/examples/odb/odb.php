@@ -12,7 +12,7 @@
         <link rel="stylesheet" type="text/css" href="./css/style.css" />
         <link type="text/css" rel="stylesheet" href="page/simplePagination.css"/>
     </head>
-    <body>
+    <body id="body">
     <?php
     // Use fopen function to open a file
     $file = fopen("/var/www/cgi-bin/pei_odb/web/address", "r");
@@ -50,7 +50,6 @@
     <script src="jquery/jquery-1.10.2.js"></script>
     <script src="jquery/jquery.min.js"></script>
     <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>-->
-
     <script type="text/javascript" src="../assets/lib/functionPrototypeBind.js"></script>
     <script type="text/javascript" src="../assets/lib/classList.js"></script>
     <script type="text/javascript" src="../assets/lib/requestAnimationFrame.js"></script>
@@ -65,5 +64,6 @@
     });
     require(['fam_test']);
     </script>
+    <script src="./drag_drop.js"></script>
     </body>
 </html>

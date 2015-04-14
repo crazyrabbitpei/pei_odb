@@ -121,7 +121,7 @@ define(function(require, exports, module) {
     */
 
     Engine.on('keyup', function(e) {
-        //TODO : the page will over total page range
+        //TODO : show pagenation
             if(e.which == 40) {
                 page=page+1;
                 word = $("input[name='search_input']").val();
@@ -364,6 +364,7 @@ define(function(require, exports, module) {
 
                 });
                 layout.content.add(stateModifier).add(grid);
+
             },
             'error':function(xhr,ajaxOptions, thrownError){
             console.log(xhr.status);
