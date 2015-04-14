@@ -4,6 +4,7 @@
 #include<sys/types.h>
 #include<sys/stat.h>
 #include<fcntl.h>
+#include<ctype.h>
 #include<unistd.h>
 #include <openssl/md5.h>
 #include <errno.h>
@@ -218,6 +219,11 @@ int cgiMain()
     else{
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         fprintf(cgiOut, "<p>Illegal option:[%s]</p>", command);
+        if(cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
+            fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
+            return 1;
+        }
+        fprintf(cgiOut,"<p>filename:%s</p>",filename);
         return 1;
     }
 
@@ -565,7 +571,7 @@ void GetFileId(char *path){
 }
 
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
-    
+    //TODO : input files at a time, currently, will miss some file
     char temp[FILENAMELENS];
     char contentType[1024];
     int got;
@@ -929,10 +935,14 @@ int ReadMapFile(char *filename, int option){
 }
 int ReadNameFile(char *filename, int option, int command, char *relfilename, int page){
     int index_file;
-    int cnt=0,num=0;
+    int cnt=0,num=0,i;
     int start=(page*16)-16;
     int end = page*16;
+    char temp[100];
     index_file = open(filename,O_RDONLY);
+    for(cnt=0;cnt<strlen(relfilename);cnt++){
+        relfilename[cnt] = tolower(relfilename[cnt]);
+    }
     if(index_file>=0){
         read(index_file,name_list,sizeof(name)*BUCKETNUMBER);
         if(option==ON){
@@ -949,7 +959,11 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
             }
             else if(command==FIND){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    if(strstr(name_list[cnt].filename,relfilename)!=0){
+                    for(i=0;i<strlen(name_list[cnt].filename);i++){
+                        temp[i] = tolower(name_list[cnt].filename[i]);
+                    }
+                    temp[i]='\0';
+                    if(strstr(temp,relfilename)!=0){
                         if(num>=start&&num<end){
                             //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
                             printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
