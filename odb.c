@@ -25,7 +25,6 @@ typedef enum{
     LIST,
     DETAIL,
     DEL,
-    //TODO : FIND (use GetFile & fname to find the files that contain keyword)
     RENAME,
     FIND
 }command;
@@ -71,7 +70,7 @@ unsigned long int hash33(unsigned char *key,unsigned long int size);
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
 int ReadMapFile(char *filename,int option);
-int ReadNameFile(char *filename,int option, int command, char *relfilename);
+int ReadNameFile(char *filename,int option, int command, char *relfilename,int page);
 
 void WriteAll(int index_file,int map_file,int ini_file,int name_file);
 int CheckFile(int fd,char *filename);
@@ -127,7 +126,8 @@ int cgiMain()
 {
     int index_file,map_file,ini_file,name_file;
     char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="";
-    int option=-1,cnt,index;
+    int option=-1,cnt,index,page=1;
+    char temp[3]="";
     char path[100]="./db/file_";
 
 #if 1
@@ -170,6 +170,13 @@ int cgiMain()
     else if(strcmp(command,"LIST")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=LIST;
+        
+        if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
+             printf("<p>Page [%s] doesn't exist!</p>",temp);
+             return 1;
+        }
+        page = atoi(temp);
+        
     }
     else if(strcmp(command,"FIND")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -178,6 +185,11 @@ int cgiMain()
              printf("<p>Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
+             printf("<p>Page [%s] doesn't exist!</p>",temp);
+             return 1;
+        }
+        page = atoi(temp);
     }
     else if(strcmp(command,"DETAIL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -344,7 +356,7 @@ int cgiMain()
         write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     }
     /*---------------read fname file----------------*/
-    if(ReadNameFile(name_path,OFF,option,relfilename)==0){
+    if(ReadNameFile(name_path,OFF,option,relfilename,page)==0){
         name_file = open(name_path,O_WRONLY);
         if(CheckFile(name_file,name_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
@@ -492,10 +504,10 @@ int cgiMain()
         ReadMapFile(map_path,ON);     
     }
     else if(option==LIST){
-        ReadNameFile(name_path,ON,option,relfilename);     
+        ReadNameFile(name_path,ON,option,relfilename,page);     
     }
     else if(option==FIND){
-        if(ReadNameFile(name_path,ON,option,relfilename)==-1){
+        if(ReadNameFile(name_path,ON,option,relfilename,page)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
         }     
         return 0;
@@ -784,14 +796,15 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
     char *new;
     char *delim=".";
     char *p[FILENAMELENS];
-    char temp[100];
+    char temp[100],name[100];
     char type[FILENAMELENS];
     int cnt=0;
+    int num=0;
     strcpy(temp,filename);
     p[cnt] = strtok(temp,delim);
-    //printf("[%d]%s\n",cnt,p[cnt]);
+    printf("[%d]%s\n",cnt,p[cnt]);
     while(p[cnt]){
-        //printf("[%d]%s\n",cnt,p[cnt]);
+        printf("[%d]%s\n",cnt,p[cnt]);
         p[++cnt]=(strtok(NULL,delim));
         //cnt++;
     }
@@ -808,7 +821,11 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
                 sprintf(new,"%s.%s",newfilename,type);
             }
             else{
-                sprintf(new,"%s_%d.%s",p[0],1,type);
+                //TODO : num wrong
+                sscanf(p[0],"(%d)",&num);
+                num++;
+                printf("</br>name:%s</br>num:%d</br>",p[0],num);
+                sprintf(new,"%s(%d).%s",p[0],num,type);
             }
         }
         else{
@@ -817,7 +834,9 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
                 sprintf(new,"%s",newfilename);
             }
             else{
-                sprintf(new,"%s_%d",p[0],1);
+                sscanf(p[0],"%s(%d)",name,&num);
+                num++;
+                sprintf(new,"%s(%d)",name,num);
             }
         }
     }
@@ -908,9 +927,11 @@ int ReadMapFile(char *filename, int option){
         return 1;
     }
 }
-int ReadNameFile(char *filename, int option, int command, char *relfilename){
+int ReadNameFile(char *filename, int option, int command, char *relfilename, int page){
     int index_file;
     int cnt=0,num=0;
+    int start=(page*16)-16;
+    int end = page*16;
     index_file = open(filename,O_RDONLY);
     if(index_file>=0){
         read(index_file,name_list,sizeof(name)*BUCKETNUMBER);
@@ -918,18 +939,22 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename){
             if(command==LIST){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                     if(strcmp(name_list[cnt].filename,"")!=0){
-                        //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                        printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                        if(num>=start&&num<end){
+                            //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                            printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                        }
+                        num++;
                     }
                 }
             }
-            //TODO : FIND COMMAND filter and web will use ajax
             else if(command==FIND){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                     if(strstr(name_list[cnt].filename,relfilename)!=0){
+                        if(num>=start&&num<end){
+                            //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                            printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                        }
                         num++;
-                        //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                        printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
                     }
                 }
                 if(num==0){
@@ -952,7 +977,6 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename){
 }
 unsigned long int hash33(unsigned char *key,unsigned long int size)
 {
-    //TODO : when word or ppt file is too old(97~2004)hv always have 0?
     unsigned char *ptr = key;
     unsigned long int hv = 0;
     unsigned long int cnt=0;
