@@ -10,7 +10,7 @@
 #include <errno.h>
 #include<time.h>
 #include "cgic.h" 
-#define FILENAMELENS 50
+#define FILENAMELENS 100
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
 #define READPER  1073741824//1 GB
@@ -146,6 +146,10 @@ int cgiMain()
 
     //check method
     method = getenv("REQUEST_METHOD");
+    if(strcmp(method,"POST")!=0){
+        printf("<p>Method wrong.</p>");
+        return 1;
+    }
     //fprintf(cgiOut,"<p>method:%s</p>",method);
     ////------------------------------------------------////
     /*                   Command  detect                  */
@@ -571,7 +575,6 @@ void GetFileId(char *path){
 }
 
 int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
-    //TODO : input files at a time, currently, will miss some file
     char temp[FILENAMELENS];
     char contentType[1024];
     int got;
@@ -808,9 +811,9 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
     int num=0;
     strcpy(temp,filename);
     p[cnt] = strtok(temp,delim);
-    printf("[%d]%s\n",cnt,p[cnt]);
+    //printf("[%d]%s\n",cnt,p[cnt]);
     while(p[cnt]){
-        printf("[%d]%s\n",cnt,p[cnt]);
+        //printf("[%d]%s\n",cnt,p[cnt]);
         p[++cnt]=(strtok(NULL,delim));
         //cnt++;
     }
@@ -830,7 +833,7 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
                 //TODO : num wrong
                 sscanf(p[0],"(%d)",&num);
                 num++;
-                printf("</br>name:%s</br>num:%d</br>",p[0],num);
+                //printf("</br>name:%s</br>num:%d</br>",p[0],num);
                 sprintf(new,"%s(%d).%s",p[0],num,type);
             }
         }
@@ -954,21 +957,29 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                             printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
                         }
                         num++;
+                        if(num>=end){
+                             break;
+                        }
                     }
                 }
             }
             else if(command==FIND){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    for(i=0;i<strlen(name_list[cnt].filename);i++){
-                        temp[i] = tolower(name_list[cnt].filename[i]);
-                    }
-                    temp[i]='\0';
-                    if(strstr(temp,relfilename)!=0){
-                        if(num>=start&&num<end){
-                            //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                            printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                    if(strcmp(name_list[cnt].filename,"")!=0){
+                        for(i=0;i<strlen(name_list[cnt].filename);i++){
+                            temp[i] = tolower(name_list[cnt].filename[i]);
                         }
-                        num++;
+                        temp[i]='\0';
+                        if(strstr(temp,relfilename)!=0){
+                            if(num>=start&&num<end){
+                                //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
+                                printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                            }
+                            num++;
+                            if(num>=end){
+                                break;
+                            }
+                        }
                     }
                 }
                 if(num==0){
