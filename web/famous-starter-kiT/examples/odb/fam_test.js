@@ -26,6 +26,7 @@ define(function(require, exports, module) {
                 //footerSize: 50,
                 contentSize:500
         });
+    /*
     layout.header.add(new Surface({
                 size: [undefined, 100],
                 content: "Header",
@@ -36,7 +37,7 @@ define(function(require, exports, module) {
                     backgroundColor:"blue"
                 }
     }));
-    
+    */
     layout.content.add(new Surface({
                 size: [undefined, undefined],
                 content:"",
@@ -46,10 +47,10 @@ define(function(require, exports, module) {
                     textAlign: "center"
                 }
     }));
-    /*
+    
     layout.footer.add(new Surface({
                 size: [undefined, 50],
-                content: "Footer",
+                content: "2015 Apr. Data Engineering Midterm Report",
                 classes: ["red-bg"],
                 properties: {
                     lineHeight: "50px",
@@ -58,31 +59,47 @@ define(function(require, exports, module) {
                     }
     
     }));
-    */
+    
     layoutm = new StateModifier({
-
+        
     });
     mainContext.add(layout);
     
     value = '/pei/odb.cgi';
     var uploadSurface = new Surface({
         size:[undefined,undefined],
-        content:'<FORM id="form1" METHOD="POST" ACTION="'+value+'" enctype="multipart/form-data">'+
+        content:'<FORM id="form1" METHOD="POST" ACTION="'+value+'" enctype="multipart/form-data" style=" margin-top: 50px; width: 50%; "" ">'+
                 '<input type="hidden" name="command" value="PUT" />'+
                 '<INPUT TYPE="file" NAME="filename" VALUE="">'+
                 //'Detail<input type="radio" name="command" value="DETAIL" /></br>'+
                 '<INPUT TYPE="submit" VALUE="Upload"></br>'+
-                '</FORM>'/*+
-                '<form id="form2" METHOD="POST" ACTION="'+value+'" enctype="multipart/form-data">'+
-                '<input type="hidden" name="command" value="FIND" />'+
-                '<input type="textarea" name="search" placeholder="search file"/>'+
-                '<INPUT type="submit" VALUE="Search"/></form>'*/
+                '</FORM>'
                 ,
         properties: {
             backgroundColor: 'black'
         }
     });
+    var upload_input = new InputSurface({
+        size: [300, 30],
+        placeholder: 'Search',
+        name:'filename',
+        type: 'file',
+        properties:{
+            color:""
+        }
+    });
+    
+    var uploadModifier = new StateModifier({
+        transform:Transform.translate(850,0,0)
+    });
     layout.header.add(uploadSurface);
+    //layout.header.add(uploadModifier).add(upload_input);
+
+    uploadModifier.setTransform(
+      Transform.translate(100, 100, 0),
+        { duration : 1000, curve: Easing.inOutBack  }
+        );
+    
 
     var search_input = new InputSurface({
         size: [300, 30],
@@ -95,10 +112,15 @@ define(function(require, exports, module) {
     });
 
     var searchModifier = new StateModifier({
-        origin: [0, 0.1],
-        align: [0, 0.5],
+        transform:Transform.translate(580,0,0)
     });
     layout.header.add(searchModifier).add(search_input);//commit for hidden
+    
+    searchModifier.setTransform(
+      Transform.translate(580, 50, 0),
+        { duration : 1000, curve: Easing.inOutBack  }
+        );
+    
     search_input.on('keyup',function(e){
         page=1;
         word = $("input[name='search_input']").val();
@@ -165,7 +187,7 @@ define(function(require, exports, module) {
             'success':function(data){
                 if(test!="demo"){
                     var arr = data.split("</br>");
-                    console.log(arr);
+                    //console.log(arr);
                     if(arr.length==1){
                         if(test=="down"){
                             page = page-1;
@@ -184,8 +206,7 @@ define(function(require, exports, module) {
                         layout.content.add(new Surface({
                             size: [undefined, undefined],
                             content:"<section class='nothing'>"+
-                                    "Not Found.</br>"+
-                                    "<input type='button' name='back' value='Back'></input>"+
+                                    "<h1>Not Found.</h1></br>"+
                                     "</section>"
                             ,
                             properties: {
@@ -324,7 +345,7 @@ define(function(require, exports, module) {
                                 
                             });
                             filestate.setContent(
-                                                '<h3>'+filenames[num]+'</h3><hr>'+
+                                                '<div style="width: 100%; overflow: hidden; text-overflow:ellipsis"><h3>'+filenames[num]+'</h3></div><hr>'+
                                                 'Size : '+sizes[num]+' KB</br>'+
                                                 'Upload date : '+dates[num]+'</br>'+
                                                 'Type : '+types[num]+'</br>'
@@ -333,7 +354,7 @@ define(function(require, exports, module) {
                             deleteModifier.setOpacity(0.8,{curve: 'easeOut',duration: 500  });
                             deleteModifier.setTransform(Transform.inFront,{curve: 'easeOut',duration: 1000  });
                             filestatem.setOpacity(0.5,{curve: 'easeOut',duration: 1000  });
-                            filestatem.setTransform(Transform.translate(100,100),{curve: 'easeOut',duration: 1000  });
+                            filestatem.setTransform(Transform.translate(50,70),{curve: 'easeOut',duration: 1000  });
 
                         });
                         desc1.on('mouseover', function() {
@@ -359,11 +380,20 @@ define(function(require, exports, module) {
 
                 var stateModifier = new StateModifier({
                         size: [500, 150],//when 250:3, 130:when 1~2
-                        origin: [0.5, 1],
-                        align: [0.5, 0.1],
+                        //origin: [0.5, 1],
+                        //align: [0.5, 0.1],
+                        transform:Transform.translate(180,-130,0),
+                        opacity:0
 
                 });
                 layout.content.add(stateModifier).add(grid);
+                stateModifier.setTransform(
+                    Transform.translate(180, -120, 0),
+                    { duration : 1000, curve: Easing.inOutBack  }
+                );
+                stateModifier.setOpacity(1,{curve: 'easeOut',duration: 500  });
+
+
 
             },
             'error':function(xhr,ajaxOptions, thrownError){
