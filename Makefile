@@ -19,7 +19,7 @@ libcgic.a: cgic.o cgic.h
 #mingw32 and cygwin users: replace .cgi with .exe
 
 odb.cgi: odb.o libcgic.a
-	gcc odb.o -o odb.cgi ${LIBS}
+	gcc odb.o rdb.c -o odb.cgi ${LIBS}
 
 capture: capture.o libcgic.a
 	gcc capture.o -o capture ${LIBS}

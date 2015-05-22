@@ -2521,7 +2521,7 @@ cgiFormResultType cgiValueEscapeData(char *data, int len)
 
 cgiFormResultType cgiValueEscape(char *s)
 {
-	return cgiValueEscapeData(s, (int) strlen(s));
+  	return cgiValueEscapeData(s, (int) strlen(s));
 }
 
-
+  

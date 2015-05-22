@@ -10,6 +10,8 @@
 #include <errno.h>
 #include<time.h>
 #include "cgic.h" 
+#include "rdb.h" 
+
 #define FILENAMELENS 100
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
@@ -32,7 +34,7 @@ typedef enum{
 
 typedef struct{
     /*index file format */
-    long int key;
+    unsigned long int key;
     int file_id;
     int offset;
     int size;
@@ -40,14 +42,16 @@ typedef struct{
 
 typedef struct{
     /* filename map to hv */
-    int key;
+    unsigned long int key;
 } map;
 
 typedef struct{
-    char filename[FILENAMELENS];
+    //char filename[FILENAMELENS];
+    unsigned long int key;
+    int offset;
     int size;
-    char date[100];
-    char type[100];
+    //char date[100];
+    //char type[100];
 }name;
 
 typedef struct{
@@ -94,12 +98,13 @@ char *Rename(char *filename,int option,int ini_file,int name_file,char *path,cha
 Config dbini[DBININUM];
 detail records[BUCKETNUMBER]={-1};
 map fname_to_hv[BUCKETNUMBER]={-1};
-name name_list[BUCKETNUMBER]={""};
+name name_list[BUCKETNUMBER];
 
 char index_path[100]="./db/index";
 char db_path[100]="";
 char map_path[100]="./db/map";
-char name_path[100]="./db/fname";
+char dfile_map_path[100]="./db/dfile_map";
+char dfile_path[100]="./db/dfile";
 char config_path[100]="./db/init";
 char result_path[100]="./db/download/";
 
@@ -366,17 +371,19 @@ int cgiMain()
         write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     }
     /*---------------read fname file----------------*/
-    if(ReadNameFile(name_path,OFF,option,relfilename,page)==0){
-        name_file = open(name_path,O_WRONLY);
-        if(CheckFile(name_file,name_path)==1){
+    if(ReadNameFile(dfile_map_path,OFF,option,relfilename,page)==0){
+        name_file = open(dfile_map_path,O_WRONLY);
+        //name_file = open(dfile_map_path,O_WRONLY|O_APPEND);
+        if(CheckFile(name_file,dfile_map_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
             //return 0;
             exit(1);
         }
     }
     else{
-        name_file = open(name_path,O_WRONLY|O_CREAT,S_IRWXU);
-        if(CheckFile(name_file,name_path)==1){
+        name_file = open(dfile_map_path,O_WRONLY|O_CREAT,S_IRWXU);
+        //name_file = open(dfile_map_path,O_WRONLY|O_APPEND|O_CREAT,S_IRWXU);
+        if(CheckFile(name_file,dfile_map_path)==1){
             WriteAll(index_file,map_file,ini_file,name_file);
             //return 0;
             exit(1);
@@ -449,10 +456,11 @@ int cgiMain()
     ////------------------------------------------------////
     if(option==DEL){
         if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
-            strcpy(name_list[index].filename,"");
-            strcpy(name_list[index].date,"");
-            strcpy(name_list[index].type,"");
-            name_list[index].size = 0;
+            
+            //strcpy(name_list[index].filename,"");
+            name_list[index].key = -1;
+            name_list[index].offset = -1;
+            
             fname_to_hv[index].key=-1;
             printf("Delete file [%s]\n",relfilename);
         }
@@ -480,20 +488,25 @@ int cgiMain()
             strcpy(relfilename,Rename(relfilename,option,ini_file,name_file,path,newfilename));
             printf("[%s]\n",relfilename);
 
-            strcpy(name_list[index].filename,"");
+            //strcpy(name_list[index].filename,"");
             key = fname_to_hv[index].key;
+            /*
             newsize = name_list[index].size;
             strcpy(newdate,name_list[index].date);
             strcpy(newtype,name_list[index].type);
+            */
 
             fname_to_hv[index].key=-1;
 
             hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
             index = hv % BUCKETNUMBER;
-            strcpy(name_list[index].filename,relfilename);
+            //strcpy(name_list[index].filename,relfilename);
+            name_list[index].key = hv;
+            /*
             strcpy(name_list[index].date,newdate);
             strcpy(name_list[index].type,newtype);
             name_list[index].size = newsize;
+            */
 
 
     /*just store filename*/
@@ -514,10 +527,10 @@ int cgiMain()
         ReadMapFile(map_path,ON);     
     }
     else if(option==LIST){
-        ReadNameFile(name_path,ON,option,relfilename,page);     
+        ReadNameFile(dfile_map_path,ON,option,relfilename,page);     
     }
     else if(option==FIND){
-        if(ReadNameFile(name_path,ON,option,relfilename,page)==-1){
+        if(ReadNameFile(dfile_map_path,ON,option,relfilename,page)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
         }     
         return 0;
@@ -595,10 +608,10 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     */
     unsigned char *data;
     unsigned long int filesize;
-    int data_file,db_file;
+    int data_file,db_file,des_file;
 
     int len=0,cnt=0;
-    int offset;
+    int offset,des_offset;
     int option;
     unsigned long int index_record,index_map,index,hv;
     
@@ -615,6 +628,16 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         return 1;
     }
     offset = GetOffset(db_file);
+    
+    //read description file to get offset
+    des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+    if(CheckFile(des_file,dfile_path)==1){
+        WriteAll(index_file,map_file,ini_file,name_file);
+        return 1;
+    }
+    des_offset = GetOffset(des_file);
+
+
     //TODO file size over 50kb will broken
     //filename
     fprintf(cgiOut, "The filename submitted was: ");
@@ -702,10 +725,19 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         //only store map
         hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
         index_map = hv % BUCKETNUMBER;
-        strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+
+        //store gais record to name_list
+        name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file);
+        
+        //strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+        name_list[index_map].key = hv;
+        name_list[index_map].offset = des_offset;
+
+        /*
         strcpy(name_list[index_map].date,date);
         strcpy(name_list[index_map].type,contentType);
         name_list[index_map].size = len;
+        */
         fname_to_hv[index_map].key = index_record;
         WriteAll(index_file,map_file,ini_file,name_file);
         return 1;
@@ -723,12 +755,17 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     index_map = hv % BUCKETNUMBER;
     fname_to_hv[index_map].key = index_record;
 
-    //store name list
-    strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+    //store gais record to name_list
+    name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file);
+    
+    //strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
+    name_list[index_map].key = hv;
+    name_list[index_map].offset = des_offset;
+    /*
     strcpy(name_list[index_map].date,date);
     strcpy(name_list[index_map].type,contentType);
     name_list[index_map].size = len;
-
+    */
   #endif
     WriteAll(index_file,map_file,ini_file,name_file);
 
@@ -937,12 +974,15 @@ int ReadMapFile(char *filename, int option){
     }
 }
 int ReadNameFile(char *filename, int option, int command, char *relfilename, int page){
-    int index_file;
+    //Read gais records and then parse them
+    int index_file,ds_file;
     int cnt=0,num=0,i;
     int start=(page*16)-16;
     int end = page*16;
     char temp[100];
+    char *data;
     index_file = open(filename,O_RDONLY);
+    ds_file = open(dfile_path,O_RDONLY);
     for(cnt=0;cnt<strlen(relfilename);cnt++){
         relfilename[cnt] = tolower(relfilename[cnt]);
     }
@@ -951,10 +991,17 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
         if(option==ON){
             if(command==LIST){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    if(strcmp(name_list[cnt].filename,"")!=0){
+                    //if(strcmp(name_list[cnt].filename,"")!=0){
+                    if(name_list[cnt].key!=0){
                         if(num>=start&&num<end){
                             //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                            printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                            //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                            //printf("%d,%s,%d</br>",name_list[cnt].key,name_list[cnt].filename,name_list[cnt].offset);
+                            lseek(ds_file,name_list[cnt].offset,SEEK_SET);
+                            data = malloc(sizeof(char)*name_list[cnt].size);
+                            read(ds_file,data,sizeof(char)*(name_list[cnt].size));
+                            printf("%lu,%d,%s</br>",name_list[cnt].key,name_list[cnt].offset,data);
+                            free(data);
                         }
                         num++;
                         if(num>=end){
@@ -963,9 +1010,11 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                     }
                 }
             }
+            /*
             else if(command==FIND){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    if(strcmp(name_list[cnt].filename,"")!=0){
+                    //if(strcmp(name_list[cnt].filename,"")!=0){
+                    if(name_list[cnt].key!=-1){
                         for(i=0;i<strlen(name_list[cnt].filename);i++){
                             temp[i] = tolower(name_list[cnt].filename[i]);
                         }
@@ -973,7 +1022,9 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                         if(strstr(temp,relfilename)!=0){
                             if(num>=start&&num<end){
                                 //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                                printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                                //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
+                                //printf("%d,%s,%d</br>",name_list[cnt].key,name_list[cnt].filename,name_list[cnt].offset);
+                                printf("%d,%d</br>",name_list[cnt].key,name_list[cnt].offset);
                             }
                             num++;
                             if(num>=end){
@@ -982,12 +1033,14 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                         }
                     }
                 }
+                
                 if(num==0){
-                    printf("-1,-1,-1,-1</br>");
+                    printf("-1,-1,-1</br>");
                     close(index_file);
                     return -1;
                 }
             }
+            */
         }
         close(index_file);
         return 0;   

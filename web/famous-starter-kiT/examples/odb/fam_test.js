@@ -187,7 +187,7 @@ define(function(require, exports, module) {
             'success':function(data){
                 if(test!="demo"){
                     var arr = data.split("</br>");
-                    //console.log(arr);
+                    console.log(arr);
                     if(arr.length==1){
                         if(test=="down"){
                             page = page-1;
@@ -232,6 +232,8 @@ define(function(require, exports, module) {
                 var surfaces = [];
 
                 var filenames=[];
+                var key=[];
+                var offset=[];
                 var sizes=[];
                 var dates=[];
                 var types=[];
@@ -260,10 +262,15 @@ define(function(require, exports, module) {
                 layout.content.add(filestatem).add(filestate);
                 for(i=0;i<arr.length-1;i++){
                      var filename = arr[i].split(",");
+                     key.push(filename[0]);
+                     offset.push(filename[1]);
+                     filenames.push(filename[2]);
+
+                     /*
                      sizes.push(filename[0]);
-                     filenames.push(filename[1]);
                      dates.push(filename[2]);
                      types.push(filename[3]);
+                     */
                      NameBlock(container,mainContext,i,filename[1],function(container,mainContext,surface,originModifier,deleteModifier,editModifier,desc1,desc2,input,container,num){
                         
                         var inputModifier = new StateModifier({
@@ -345,10 +352,11 @@ define(function(require, exports, module) {
                                 
                             });
                             filestate.setContent(
-                                                '<div style="width: 100%; overflow: hidden; text-overflow:ellipsis"><h3>'+filenames[num]+'</h3></div><hr>'+
-                                                'Size : '+sizes[num]+' KB</br>'+
-                                                'Upload date : '+dates[num]+'</br>'+
-                                                'Type : '+types[num]+'</br>'
+                                                //'<div style="width: 100%; overflow: hidden; text-overflow:ellipsis"><h3>'+filenames[num]+'</h3></div><hr>'+
+                                                '<div style="width: 100%; overflow: hidden; text-overflow:ellipsis"><h3>'+key[num]+'</h3></div><hr>'+
+                                                'Key : '+key[num]+'</br>'+
+                                                //'Upload date : '+dates[num]+'</br>'+
+                                                'offset : '+filenames[num]+'</br>'
                                                 );
 
                             deleteModifier.setOpacity(0.8,{curve: 'easeOut',duration: 500  });
