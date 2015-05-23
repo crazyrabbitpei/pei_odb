@@ -12,11 +12,6 @@
 #include "cgic.h" 
 #include "rdb.h" 
 
-#define FILENAMELENS 100
-#define BUCKETNUMBER 1000000
-#define DBININUM 2
-#define READPER  1073741824//1 GB
-#define DATASIZE  1073741824//1 GB
 typedef enum{
     OFF,
     ON
@@ -29,7 +24,8 @@ typedef enum{
     DETAIL,
     DEL,
     RENAME,
-    FIND
+    FIND,
+    CDIR
 }command;
 
 typedef struct{
@@ -45,14 +41,6 @@ typedef struct{
     unsigned long int key;
 } map;
 
-typedef struct{
-    //char filename[FILENAMELENS];
-    unsigned long int key;
-    int offset;
-    int size;
-    //char date[100];
-    //char type[100];
-}name;
 
 typedef struct{
     /*db init setting*/
@@ -223,6 +211,14 @@ int cgiMain()
         if(cgiFormString("newfilename", newfilename, sizeof(newfilename))==cgiFormNotFound){
             printf("New filename?\n");
             return 1;
+        }
+    }
+    else if(strcmp(command,"CDIR")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=CDIR;
+        if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>Foldername [%s] doesn't exist!</p>",filename);
+             return 1;
         }
     }
     else{
@@ -535,7 +531,13 @@ int cgiMain()
         }     
         return 0;
     }
-
+    ////------------------------------------------------////
+    /*                  Create Folder                       */
+    ////------------------------------------------------////
+    if(option==CDIR){
+        printf("%d",CreateDir(relfilename));
+        WriteAll(index_file,map_file,ini_file,name_file);
+    }
     close(index_file);
     close(map_file);
     close(name_file);
@@ -992,7 +994,7 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
             if(command==LIST){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                     //if(strcmp(name_list[cnt].filename,"")!=0){
-                    if(name_list[cnt].key!=0){
+                    if(name_list[cnt].size!=0){
                         if(num>=start&&num<end){
                             //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
                             //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);

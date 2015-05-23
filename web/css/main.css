@@ -1,0 +1,193 @@
+body {
+    display:block;
+    margin:0 auto;
+}
+header {
+    display:block;
+    width:auto;
+    height:20vh;
+}
+main {
+    display:block;
+    width:auto;
+    height:80vh;
+    background-color:grey;
+}
+footer {
+    display:block;
+    width:auto;
+    height:5vh;
+    background-color:green;
+}
+
+header #user {
+    float: left;
+    width: 20%;
+    height: 100%;
+    background-color: pink;
+
+}
+#user img {
+
+}
+#user nav {
+
+}
+
+
+
+header #info {
+    float: left;
+    width: 60%;
+    height: 100%;
+    background-color:purple;
+    
+}
+#info #dir {
+    float:left;
+    width: 70%;
+}
+#info #db {
+    float:left;
+    width: 30%;
+    background-color: aquamarine;
+
+}
+#info #path {
+
+}
+#dir_note {
+        
+}
+
+header #dir_note {
+    float: left;
+    width: 20%;
+    height: 100%;
+    background-color:pink;
+}
+main#center {
+    float:left;
+    width:60%;
+    height: 100%;
+    text-align: center;
+    background-color:white;
+}
+
+#center #file_config {
+    display: block;
+    height: 10%;
+    padding: 10px;
+    text-align: left;
+    background-color: burlywood;
+}
+#center #search {
+    display: inline;
+    padding-right: 100px;
+}
+#center #search input[type="textarea"]{
+    width: 20%;
+}
+#center #search #searchby{
+}
+#center #upload{
+    display: inline;
+    padding: 10px;
+}
+#center #upload input[type="file"]{
+    width: 25%;
+}
+
+#center #file_block {
+    display: block;
+    height: 80%;
+    background-color: aliceblue;
+}
+#center #page {
+    display: block;
+    height: 10%;
+    background-color: black;
+}
+
+
+aside#left {
+    float:left;
+    width:20%;
+    height: 100%;
+    background-color:blue;
+}
+aside#left #file_info {
+    display: block;
+    height: 60%;
+    background-color: beige;
+}
+aside#left #upload_status {
+    display: block;
+    height: 40%;
+    padding:10px;
+    background-color: grey;
+    overflow: scroll;
+}
+
+aside#right {
+    float:left;
+    width:20%;
+    height: 100%;
+    background-color:blue;
+    text-align:center;
+}
+#right #search {
+    display: block;
+    height: 10%;
+    padding: 10px;
+    background-color: chocolate;
+}
+#right #dir_list {
+    display: block;
+    height: 90%;
+    background-color: antiquewhite;
+}
+
+.files {
+    float: left;
+    width: 100px;
+    height: 50px;
+    margin: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dir {
+    background-color: #DAECFF
+}
+.pdf {
+    background-color: #E8A90C;
+}
+.ppt {
+    background-color: brown;
+}
+.doc {
+    background-color: #CC4A14;
+}
+.xls {
+    background-color: #007BFF;
+        
+}
+.zip {
+    background-color: #40FF40;
+
+}
+.json {
+    background-color: #F0CFFF;
+        
+}
+.image {
+    background-color: #0DEDFF;
+
+}
+.audio {
+    background-color: #D0B1E8;
+        
+}
+.default {
+    background-color: darksalmon;
+}
