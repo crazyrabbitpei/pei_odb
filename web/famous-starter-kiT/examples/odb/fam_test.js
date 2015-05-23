@@ -115,7 +115,22 @@ define(function(require, exports, module) {
         transform:Transform.translate(580,0,0)
     });
     layout.header.add(searchModifier).add(search_input);//commit for hidden
+
+
+    var add_dir = new InputSurface({
+        size: [300, 30],
+        placeholder: 'Search',
+        name:'add_dir',
+        type: 'button',
+        properties:{
+            //color:'black'
+        }
+    });
+    layout.header.add(add_dir);//commit for hidden
+
     
+
+
     searchModifier.setTransform(
       Transform.translate(580, 50, 0),
         { duration : 1000, curve: Easing.inOutBack  }
