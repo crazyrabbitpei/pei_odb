@@ -156,6 +156,32 @@ aside#right {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.blocks {
+    display:block;
+    position: absolute;
+    width: 100px; 
+    background-color: black;   
+
+}
+.control_block {
+    position: relative;
+    width: 100px; 
+    height: 25px;
+    background-color: hotpink;   
+}
+.control_block:hover{
+    background-color: yellow;   
+}
+#get_form {
+    display: none;
+}
+#del_form {
+    display: none;
+}
+#re_form {
+    display: none;
+}
+
 .dir {
     background-color: #DAECFF
 }

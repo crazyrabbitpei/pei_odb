@@ -23,6 +23,7 @@ typedef enum{
     LIST,
     DETAIL,
     DEL,
+    DELD,
     RENAME,
     FIND,
     CDIR
@@ -123,6 +124,7 @@ int cgiMain()
     int option=-1,cnt,index,page=1;
     char temp[3]="";
     char path[100]="./db/file_";
+    char type[10];
 
 #if 1
     char command[10],*cm;
@@ -159,7 +161,6 @@ int cgiMain()
     }
     else if(strcmp(command,"GET")==0){
         option=GET;
-        //printf("%s%c%c\n","Content-Type:applocation/octet-stream",13,10);
         if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
              printf("<p>Filename [%s] doesn't exist!</p>",filename);
              return 1;
@@ -196,6 +197,16 @@ int cgiMain()
     else if(strcmp(command,"DEL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=DEL;
+        strcpy(type,"file");
+        if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
+             printf("<p>DEL:Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+    }
+    else if(strcmp(command,"DELD")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=DELD;
+        strcpy(type,"dir");
         if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
              printf("<p>DEL:Filename [%s] doesn't exist!</p>",filename);
              return 1;
@@ -450,7 +461,7 @@ int cgiMain()
     /*  imported before be imported again, will show      */
     /*  content exists.                                   */
     ////------------------------------------------------////
-    if(option==DEL){
+    if(option==DEL||option==DELD){
         if((index=GetFile(relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
             
             //strcpy(name_list[index].filename,"");
@@ -458,10 +469,10 @@ int cgiMain()
             name_list[index].offset = -1;
             
             fname_to_hv[index].key=-1;
-            printf("Delete file [%s]\n",relfilename);
+            printf("Delete %s [%s]\n",type,relfilename);
         }
         else{ 
-            printf("file [%s] doesn't exist.\n",relfilename);
+            printf("%s [%s] doesn't exist.\n",type,relfilename);
         }
         WriteAll(index_file,map_file,ini_file,name_file);
         return 0;
@@ -780,11 +791,20 @@ int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,in
     int cnt;
     char *data;
     int db_file,result,index_file,map_file;
+    //printf("download file [%s]</br>",filename);
 #if 1
     //printf("1.GetFilename:%s\n",filename);
     hv = Gethv((unsigned char *)filename,(unsigned long int)size);
     index = hv % BUCKETNUMBER;
     //if(strcmp(fname_to_hv[index].filename,filename)==0){
+    if(option==DELD){
+        if(name_list[index].key!=0 && name_list[index].key!=-1){
+            return index;
+        }
+        else{
+            return 0;
+        }
+    }
     if(fname_to_hv[index].key!=-1){
         if(option==FIND||option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
             //printf("(filename [%s] exist!)</br>",filename);
@@ -994,7 +1014,7 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
             if(command==LIST){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                     //if(strcmp(name_list[cnt].filename,"")!=0){
-                    if(name_list[cnt].size!=0){
+                    if(name_list[cnt].key!=0 && name_list[cnt].key!=-1){
                         if(num>=start&&num<end){
                             //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
                             //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);

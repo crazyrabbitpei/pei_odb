@@ -13,6 +13,7 @@
     //$value = fgets($file);
     // Close the file that no longer in use
     //fclose($file);
+    $value = "/pei/odb.cgi";
     ?>
     <header>
         <section id="user">
@@ -109,24 +110,22 @@
 
     </main>
 
-    <!--
-    <form method="post" id="post_form" action="<?php echo $value; ?>">
-        <input type="hidden" id="command" name="command" value="GET">
-        <input type="hidden" id="post_filename" name="filename" value="">
+    <form method="post" id="get_form" action="<?php echo $value; ?>">
+        <input id="command" name="command" value="GET">
+        <input id="post_filename" name="filename" value="">
         <input type="submit" value="Submit">
     </form>
     <form method="post" id="del_form" action="<?php echo $value; ?>">
-        <input type="hidden" id="command" name="command" value="DEL">
-        <input type="hidden" id="del_filename" name="filename" value="">
+        <input id="command" name="command" value="DEL">
+        <input id="del_filename" name="filename" value="">
         <input type="submit" value="Submit">
     </form>
     <form method="post" id="re_form" action="<?php echo $value; ?>">
-        <input type="hidden" id="command" name="command" value="RENAME">
-        <input type="hidden" id="o_filename" name="filename" value="">
-        <input type="hidden" id="re_filename" name="newfilename" value="">
+        <input id="command" name="command" value="RENAME">
+        <input id="o_filename" name="filename" value="">
+        <input id="re_filename" name="newfilename" value="">
         <input type="submit" value="Submit">
     </form>
-    -->
     <!--<script src="https://code.jquery.com/jquery-1.10.2.js"></script>-->
     <script src="jquery/jquery-1.10.2.js"></script>
     <script src="jquery/jquery.min.js"></script>

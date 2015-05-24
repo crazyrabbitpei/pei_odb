@@ -35,7 +35,8 @@ int CreateDir(char *name){
     
     hv = Gethv((unsigned char *)name,(unsigned long int)strlen(name));
     index_map = hv % BUCKETNUMBER;
-    if(name_list[index_map].key!=0){
+    if(name_list[index_map].key!=-1 && name_list[index_map].key!=0){
+        name_list[index_map].key = hv;
         return -1;
     }
     name_list[index_map].key = hv;
