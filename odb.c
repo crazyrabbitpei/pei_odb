@@ -64,7 +64,7 @@ unsigned long int hash33(unsigned char *key,unsigned long int size);
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
 int ReadMapFile(char *filename,int option);
-int ReadNameFile(char *filename,int option, int command, char *relfilename,int page);
+int ReadNameFile(char *filename,int option, int command, char *relfilename,int page, char *dirname);
 
 void WriteAll(int index_file,int map_file,int ini_file,int name_file);
 int CheckFile(int fd,char *filename);
@@ -77,7 +77,7 @@ void msg();
  */
 /*-----------------------------------*/
 int GetFile(char *filename,int size,int option,char *newfilename,int ini_file,int name_file,char *path);
-int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename);
+int PutFile(char *dir_path ,char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename);
 char *Rename(char *filename,int option,int ini_file,int name_file,char *path,char *newfilename);
 //TODO : package function
 /*
@@ -120,11 +120,11 @@ int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
     int index_file,map_file,ini_file,name_file;
-    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="";
+    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="";
     int option=-1,cnt,index,page=1;
     char temp[3]="";
     char path[100]="./db/file_";
-    char type[10];
+    char type[10],dir_path[FILENAMELENS]="";
 
 #if 1
     char command[10],*cm;
@@ -156,8 +156,12 @@ int cgiMain()
     }
 
     if(strcmp(command,"PUT")==0){
-    printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=PUT;
+        if(cgiFormString("path", dir_path, sizeof(dir_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
     }
     else if(strcmp(command,"GET")==0){
         option=GET;
@@ -169,6 +173,10 @@ int cgiMain()
     else if(strcmp(command,"LIST")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=LIST;
+        if(cgiFormString("search", dirname, sizeof(dirname))==cgiFormNotFound){
+             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
         
         if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
              printf("<p>Page [%s] doesn't exist!</p>",temp);
@@ -229,6 +237,10 @@ int cgiMain()
         option=CDIR;
         if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
              printf("<p>Foldername [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("path", dir_path, sizeof(dir_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
              return 1;
         }
     }
@@ -378,7 +390,7 @@ int cgiMain()
         write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
     }
     /*---------------read fname file----------------*/
-    if(ReadNameFile(dfile_map_path,OFF,option,relfilename,page)==0){
+    if(ReadNameFile(dfile_map_path,OFF,option,relfilename,page,dirname)==0){
         name_file = open(dfile_map_path,O_WRONLY);
         //name_file = open(dfile_map_path,O_WRONLY|O_APPEND);
         if(CheckFile(name_file,dfile_map_path)==1){
@@ -445,7 +457,7 @@ int cgiMain()
     /*                      PutFile                       */
     ////------------------------------------------------////
     if(option==PUT){
-        if(PutFile(filename,relfilename,index_file,map_file,ini_file,name_file,path,newfilename)==0){//success import
+        if(PutFile(dir_path,filename,relfilename,index_file,map_file,ini_file,name_file,path,newfilename)==0){//success import
             printf("Import Success.\n");
         }
         else{
@@ -534,10 +546,10 @@ int cgiMain()
         ReadMapFile(map_path,ON);     
     }
     else if(option==LIST){
-        ReadNameFile(dfile_map_path,ON,option,relfilename,page);     
+        ReadNameFile(dfile_map_path,ON,option,relfilename,page,dirname);     
     }
     else if(option==FIND){
-        if(ReadNameFile(dfile_map_path,ON,option,relfilename,page)==-1){
+        if(ReadNameFile(dfile_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
         }     
         return 0;
@@ -546,7 +558,7 @@ int cgiMain()
     /*                  Create Folder                       */
     ////------------------------------------------------////
     if(option==CDIR){
-        printf("%d",CreateDir(relfilename));
+        printf("%d",CreateDir(relfilename,dir_path));
         WriteAll(index_file,map_file,ini_file,name_file);
     }
     close(index_file);
@@ -600,7 +612,7 @@ void GetFileId(char *path){
     sprintf(db_path,"%s%d",path,dbini[0].CURFILEID);
 }
 
-int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
+int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
     char temp[FILENAMELENS];
     char contentType[1024];
     int got;
@@ -740,7 +752,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
         index_map = hv % BUCKETNUMBER;
 
         //store gais record to name_list
-        name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file);
+        name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
         
         //strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
         name_list[index_map].key = hv;
@@ -769,7 +781,7 @@ int PutFile(char *filename,char *relfilename,int index_file,int map_file,int ini
     fname_to_hv[index_map].key = index_record;
 
     //store gais record to name_list
-    name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file);
+    name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
     
     //strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
     name_list[index_map].key = hv;
@@ -995,7 +1007,13 @@ int ReadMapFile(char *filename, int option){
         return 1;
     }
 }
-int ReadNameFile(char *filename, int option, int command, char *relfilename, int page){
+int ReadNameFile(char *filename, int option, int command, char *relfilename, int page, char *dirname){
+    /*
+    if(GetFile(dirname,strlen(dirname),option,dirname,0,0,dirname)==0){//if dir not exists
+        printf("[X]");   
+        return -1;
+    }
+    */
     //Read gais records and then parse them
     int index_file,ds_file;
     int cnt=0,num=0,i;
@@ -1005,13 +1023,16 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
     char *data;
     index_file = open(filename,O_RDONLY);
     ds_file = open(dfile_path,O_RDONLY);
+    /*
     for(cnt=0;cnt<strlen(relfilename);cnt++){
         relfilename[cnt] = tolower(relfilename[cnt]);
     }
+    */
     if(index_file>=0){
         read(index_file,name_list,sizeof(name)*BUCKETNUMBER);
         if(option==ON){
             if(command==LIST){
+                char find_path[FILENAMELENS]="";
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
                     //if(strcmp(name_list[cnt].filename,"")!=0){
                     if(name_list[cnt].key!=0 && name_list[cnt].key!=-1){
@@ -1022,7 +1043,13 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                             lseek(ds_file,name_list[cnt].offset,SEEK_SET);
                             data = malloc(sizeof(char)*name_list[cnt].size);
                             read(ds_file,data,sizeof(char)*(name_list[cnt].size));
-                            printf("%lu,%d,%s</br>",name_list[cnt].key,name_list[cnt].offset,data);
+                            /*------------*/
+                            //judge dirname
+                            sprintf(find_path,"@path:%s",dirname);
+                            if(strstr(data,find_path)){
+                                printf("%lu,%d,%s</br>",name_list[cnt].key,name_list[cnt].offset,data);
+                            }
+                            /*------------*/
                             free(data);
                         }
                         num++;
@@ -1031,6 +1058,7 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                         }
                     }
                 }
+                
             }
             /*
             else if(command==FIND){

@@ -79,11 +79,12 @@
                     </select>
                 </section>
                 <input type="button" id="add_dir" value="+"/>
-                <form id="upload" method="POST" action="/pei/odb.cgi" enctype="multipart/form-data">
+                <!--<form id="upload" method="POST" action="/pei/odb.cgi" enctype="multipart/form-data">-->
                     <input type="hidden" name="command" value="PUT" />
+                    <input type="hidden" name="path" value="" />
                     <input type="file" name="filename" value=""/>
-                    <input type="submit" value="Upload"/>
-                </form>
+                    <input id="upload" type="submit" value="Upload"/>
+                <!--</form>-->
                 <select id=sortby>
                     <option value="upload">Upload Time</option>
                     <option value="name">Name</option>
@@ -109,7 +110,7 @@
         </aside>
 
     </main>
-
+    <!--
     <form method="post" id="get_form" action="<?php echo $value; ?>">
         <input id="command" name="command" value="GET">
         <input id="post_filename" name="filename" value="">
@@ -126,6 +127,7 @@
         <input id="re_filename" name="newfilename" value="">
         <input type="submit" value="Submit">
     </form>
+    -->
     <!--<script src="https://code.jquery.com/jquery-1.10.2.js"></script>-->
     <script src="jquery/jquery-1.10.2.js"></script>
     <script src="jquery/jquery.min.js"></script>

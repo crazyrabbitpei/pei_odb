@@ -12,7 +12,7 @@ typedef struct{
     //char type[100];
 
 }name;
-int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp);
-int CreateDir(char *name);
+int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp,char *dir_path);
+int CreateDir(char *name,char *dir_path);
 unsigned long int Gethv(unsigned char *data,unsigned long int size);
 int GetOffset(int file);

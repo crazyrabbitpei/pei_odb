@@ -1,8 +1,30 @@
-var page=1;    
+var page=1;
+var current_dir;
 $(document).ready(function(){
-            createFileBlock("LIST","POST","4","4","","normal",page,function(result){
-                page = result;
-            });
+                var title = document.getElementById("dir_name");
+                var path = document.getElementById("dir_config");
+                  
+                var url  = location.href;
+                var dirname = url.split("path=")[1];
+                console.log(dirname);
+                if(!dirname){
+                    title.innerHTML = "Mydrive";
+                    dirname = "Mydrive";
+                    current_dir = "/";
+                    var path_link = document.createElement("span");
+                    path_link.setAttribute("class","path_link");
+                    path_link.innerHTML = dirname;
+                    path.appendChild(path_link);
+                }
+                else{
+                    title.innerHTML = dirname;
+                    current_dir = dirname;
+                    document.getElementsByName("path")[0].value = current_dir;
+                }
+                
+                createFileBlock("LIST","POST",current_dir,"normal",page,function(result){
+                    page = result;
+                });
 });
 
 
@@ -31,19 +53,36 @@ $("#add_dir").click(function(){
     $("input.files.dir").focusout(function(){
         var name = $(this).val();
         console.log("dir name:"+name);
+        if(!name){
+            $(this).remove();
+            return ;
+        }
         
-        sendCommand("CDIR",name,"filename","","POST",function(result){
+        sendCommand("CDIR",name,"filename",current_dir,"POST",function(result){
             console.log("result:"+result);
+            var input= document.getElementsByClassName("files dir");
+            var len =document.getElementsByClassName("files dir").length;
+            input[len-1].remove();
+            var dir = document.createElement("div");
+            dir.setAttribute("class","files dir");
+            dir.innerHTML = name;
+            dir.addEventListener('dblclick',intodir);
+            document.getElementById("file_block").appendChild(dir);
+            
         });
         
     });
 });
+$("#upload").click(function(){
+    var file = document.getElementsByName('filename')[0];
+    upload(file,file.files[0].name,0,1,"single");
+});
 
-function sendCommand(command,filename,par,page,method,callback){
+function sendCommand(command,filename,par,path,method,callback){
     var formData = new FormData();
     formData.append(par,filename);
     formData.append('command',command);
-    formData.append('page',page);
+    formData.append('path',path);
         $.ajax({
             'url':'/pei/odb.cgi',
             'data':formData,
@@ -60,15 +99,19 @@ function sendCommand(command,filename,par,page,method,callback){
         });
 }
 
-function createFileBlock(command,method,row,column,sfilename,test,page,callback){
+function createFileBlock(command,method,sfilename,test,page,callback){
         $.ajax({
             'url':'/pei/odb.cgi',
             'data': 'command='+command+'&search='+sfilename+'&page='+page,
             'type': method,
             'success':function(data){
+                $(".files").remove();
                 if(test!="demo"){
                     var arr = data.split("</br>");
                     console.log(arr);
+                    if(arr==""){
+                        //errMsg("404");
+                    }
                     if(arr.length==1){
                         if(test=="down"){
                             page = page-1;
@@ -98,7 +141,11 @@ function createFileBlock(command,method,row,column,sfilename,test,page,callback)
                 var detail=[];
                 var key=[];
                 var offset=[];
-
+                var dates = [];
+                var filenames = [];
+                var types = [];
+                
+                var file_array =new Array();
                 for(i=0;i<arr.length-1;i++){
                      var data = arr[i].split(",");
                      key.push(data[0]);
@@ -108,15 +155,32 @@ function createFileBlock(command,method,row,column,sfilename,test,page,callback)
                      filename = filename[0].replace("@name:","");
                      var type = data[2].match(/@type:.*/);
                      type = type[0].replace("@type:","");
-                    newfile(filename,type);
-
+                    var date = data[2].match(/@ctime:.*/);
+                    date = date[0].replace("@ctime:","");
+                    file_array.push({name:filename,type:type,date:date});
                 }
+                //sort file by__(default is date)
+                file_array.sort(sortFunction);
+                file_array = JSON.stringify(file_array);
+                file_array = JSON.parse(file_array);
+                for(i=0;i<file_array.length;i++){
+                        newfile(file_array[i].name,file_array[i].type);
+                }
+
             },
             'error':function(xhr,ajaxOptions, thrownError){
             console.log(xhr.status);
             console.log(thrownError);
             }
         });
+}
+function errMsg(num){
+    document.getElementById("file_block").innerHTML  = "<span class='error'>"+num+"</span>";
+}
+function sortFunction(a,b){
+    var dateA = new Date(a.date).getTime();
+    var dateB = new Date(b.date).getTime();
+    return dateA > dateB ? 1 : -1;
 }
 //show on website
 function newfile(filename,type){
@@ -162,7 +226,6 @@ function newfile(filename,type){
         document.getElementById("file_block").appendChild(div);
         div.innerHTML = filename;
         if(type=="files dir"){
-
                 div.addEventListener('dblclick',intodir);
         }
 
@@ -172,9 +235,38 @@ function intodir(e){
         console.log("dbclick:"+$(this).text());
         var title = document.getElementById("dir_name");
         var path = document.getElementById("dir_config");
+        
+        var path_link = document.createElement("span");
+        path_link.setAttribute("class","path_link");
+        path_link.innerHTML = " > " + $(this).text();
         title.innerHTML = $(this).text();
+        path.appendChild(path_link);
+
+        $(".path_link").click(jumpdir);
 
         $(".files").remove();
+        current_dir = $(this).text();//if dir exist
+        document.getElementsByName("path")[0].value = current_dir;
+        createFileBlock("LIST","POST",$(this).text(),"normal",page,function(result){
+                page = result;
+        });
+        
+}
+function jumpdir(e){
+        $(this).nextAll().remove();
+        var gopath = $(this).text().replace(" > ","");
+        
+        var title = document.getElementById("dir_name");
+        title.innerHTML = gopath;
+        current_dir = gopath;
+        
+        gopath = gopath.replace("Mydrive","/");
+
+        console.log("jump to :"+gopath);
+        createFileBlock("LIST","POST",gopath,"normal",page,function(result){
+            page = result;
+        });
+        
 }
 //control file
 function control(e){

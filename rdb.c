@@ -10,11 +10,11 @@
 #define RECORDLEN 1000
 extern char dfile_path[];
 extern name name_list[];
-int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp){
+int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp,char *dir_path){
     char *record;
     int size;
     record = malloc(sizeof(char)*RECORDLEN);
-    sprintf(record,"@\n@key:%lu\n@name:%s\n@type:%s\n@ctime:%s@size:%d\n@path:/\n",key,name,type,date,len);
+    sprintf(record,"@\n@key:%lu\n@name:%s\n@type:%s\n@ctime:%s@size:%d\n@path:%s\n",key,name,type,date,len,dir_path);
     write(fp,record,strlen(record));
     size = strlen(record);
     free(record);
@@ -22,7 +22,7 @@ int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int
     return size;
 }
 
-int CreateDir(char *name){
+int CreateDir(char *name,char *dir_path){
     char* date;
     int des_file,des_offset;
     unsigned long int hv,index_map;
@@ -32,6 +32,7 @@ int CreateDir(char *name){
 
     current_time = time(NULL);
     date = ctime(&current_time);
+    //TODO:file name same as dir name?
     
     hv = Gethv((unsigned char *)name,(unsigned long int)strlen(name));
     index_map = hv % BUCKETNUMBER;
@@ -41,7 +42,7 @@ int CreateDir(char *name){
     }
     name_list[index_map].key = hv;
     name_list[index_map].offset = des_offset;
-    name_list[index_map].size = StoreGais(name,"dir",0,date,hv,des_file);
+    name_list[index_map].size = StoreGais(name,"dir",0,date,hv,des_file,dir_path);
     
     return 0;
 }

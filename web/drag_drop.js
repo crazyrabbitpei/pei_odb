@@ -13,7 +13,7 @@ function uploadDrop(e) {
         return;
     }
     var files = e.dataTransfer.files;
-    upload(files,0,files.length);
+    upload(files,files[0].name,0,files.length,"muti");
 }
 function handleDragOver(e) {
       e.stopPropagation(); // Stops some browsers from redirecting.
@@ -27,12 +27,24 @@ function handleDragLeave(e) {
       e.stopPropagation(); // Stops some browsers from redirecting.
         e.preventDefault();
 }
-function upload(files,cnt,len){ 
+function upload(files,name,cnt,len,type){ 
     // Read the File objects in this FileList.
-                  console.log("files:"+files[cnt].name);
-                  var formData = new FormData();
+                var formData = new FormData();
+                var filename;
+                console.log(type);
+                if(type=="muti"){
+                  console.log("files:"+name);
                   formData.append('filename',files[cnt]);
+                }
+                else{
+                  console.log("files:"+name);
+                  formData.append('filename',files.files[0]);
+                }
                   formData.append('command',"PUT");
+                  if(current_dir=="Mydrive"){
+                          current_dir = "/";
+                  }
+                  formData.append('path',current_dir);
                   $.ajax({
                     'url':'/pei/odb.cgi',
                     'data':formData,
@@ -43,14 +55,16 @@ function upload(files,cnt,len){
                         //console.log(data);
                         var div = document.getElementById("upload_status");
                         div.innerHTML+=data;
-                        var type = data.match(/The alleged content type of the file was:.*/);
-                        type = type[0].replace("The alleged content type of the file was:","");
-                        type = type.replace("<p>","");
-                        type = type.replace(" ","");
-                        newfile(files[cnt].name,type);
+                        var contenttype = data.match(/The alleged content type of the file was:.*/);
+                        contenttype = contenttype[0].replace("The alleged content type of the file was:","");
+                        contenttype = contenttype.replace("<p>","");
+                        cintenttype = contenttype.replace(" ","");
+                        
+                        newfile(name,type);
+                        
                         cnt++;
                         if(cnt==len){return;}
-                        upload(files,cnt,len);
+                        upload(files,files[cnt].name,cnt,len,type);
                     },
                     'error':function(xhr,ajaxOptions, thrownError){
                         console.log(xhr.status);
