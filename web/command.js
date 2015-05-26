@@ -1,26 +1,18 @@
 var page=1;
-var current_dir;
+var current_dir="Mydrive";
 $(document).ready(function(){
                 var title = document.getElementById("dir_name");
                 var path = document.getElementById("dir_config");
-                  
-                var url  = location.href;
-                var dirname = url.split("path=")[1];
-                console.log(dirname);
-                if(!dirname){
-                    title.innerHTML = "Mydrive";
-                    dirname = "Mydrive";
-                    current_dir = "/";
-                    var path_link = document.createElement("span");
-                    path_link.setAttribute("class","path_link");
-                    path_link.innerHTML = dirname;
-                    path.appendChild(path_link);
-                }
-                else{
-                    title.innerHTML = dirname;
-                    current_dir = dirname;
-                    document.getElementsByName("path")[0].value = current_dir;
-                }
+                var dirname;
+                console.log(current_dir);
+                    
+                title.innerHTML = "Mydrive";
+                dirname = "Mydrive";
+                current_dir = "/";
+                var path_link = document.createElement("span");
+                path_link.setAttribute("class","path_link");
+                path_link.innerHTML = dirname;
+                path.appendChild(path_link);
                 
                 createFileBlock("LIST","POST",current_dir,"normal",page,function(result){
                     page = result;
@@ -45,6 +37,14 @@ body.addEventListener('mousedown',blockMenu, false);
 
 //web command: add dir
 $("#add_dir").click(function(){
+    var check = document.getElementsByClassName("files dir");
+    var len =document.getElementsByClassName("files dir").length;
+    if(len){
+        if(check[len-1].tagName=="INPUT"){
+            check[len-1].remove();
+        }
+    }
+
     var dir = document.createElement("input");
     dir.setAttribute("class","files dir");
     dir.setAttribute("type","textarea");
@@ -58,7 +58,7 @@ $("#add_dir").click(function(){
             return ;
         }
         
-        sendCommand("CDIR",name,"filename",current_dir,"POST",function(result){
+        sendCommand("CDIR",name,"","filename",current_dir,"POST",function(result){
             console.log("result:"+result);
             var input= document.getElementsByClassName("files dir");
             var len =document.getElementsByClassName("files dir").length;
@@ -68,7 +68,7 @@ $("#add_dir").click(function(){
             dir.innerHTML = name;
             dir.addEventListener('dblclick',intodir);
             document.getElementById("file_block").appendChild(dir);
-            
+            dir.addEventListener('mousedown',control,false);
         });
         
     });
@@ -77,11 +77,11 @@ $("#upload").click(function(){
     var file = document.getElementsByName('filename')[0];
     upload(file,file.files[0].name,0,1,"single");
 });
-
-function sendCommand(command,filename,par,path,method,callback){
+function sendCommand(command,filename,newfilename,par,path,method,callback){
     var formData = new FormData();
     formData.append(par,filename);
     formData.append('command',command);
+    formData.append('newfilename',newfilename);
     formData.append('path',path);
         $.ajax({
             'url':'/pei/odb.cgi',
@@ -148,11 +148,13 @@ function createFileBlock(command,method,sfilename,test,page,callback){
                 var file_array =new Array();
                 for(i=0;i<arr.length-1;i++){
                      var data = arr[i].split(",");
-                     key.push(data[0]);
-                     offset.push(data[1]);
-                     detail.push(data[2]);
-                     var filename = data[2].match(/@name:.*/);
-                     filename = filename[0].replace("@name:","");
+                     //key.push(data[0]);
+                     //offset.push(data[1]);
+                     //detail.push(data[2]);
+                     
+                     //var filename = data[2].match(/@name:.*/);
+                     //filename = filename[0].replace("@name:","");
+                     var filename = data[1];
                      var type = data[2].match(/@type:.*/);
                      type = type[0].replace("@type:","");
                     var date = data[2].match(/@ctime:.*/);
@@ -321,15 +323,40 @@ function excute_control(e){
 
         switch($(this).text()){
                 case 'Download'://download
+
                         if($(this).closest('.files').attr("class")!="files dir"){
                             console.log("not dir:"+$(this).closest('.files').attr("class"));
-                            list(filename);
+                            download(filename);
                         }
+                        $(".control_block").remove();
                         break;
                 case 'Rename'://rename
+                        console.log("dir/file:"+$(this).parents("div.files").attr("class"));
+                        var type = $(this).parents("div.files").attr("class");
+                        var rename_block = document.createElement("div");
+                        var file_block = document.getElementById("file_block");
+                        rename_block.setAttribute("class","rename_block");
+                        rename_block.setAttribute("value",type);
+                        file_block.appendChild(rename_block);
+
+                        var input = document.createElement("input");
+                        input.setAttribute("id","newname_block");
+                        input.setAttribute("type","text");
+                        input.setAttribute("placeholder",filename);
+                        var submit = document.createElement("input");
+                        submit.setAttribute("id","rename");
+                        submit.setAttribute("type","button");
+                        submit.setAttribute("value","ok");
+                
+                        rename_block.appendChild(input);
+                        rename_block.appendChild(submit);
+                        
+                        submit.addEventListener('click',rename,false);
                         //rename(filename);
+                        $(".control_block").remove();
                         break;
                 case 'Delete'://delete
+
                     var command="";
                     if($(this).closest('.files').attr("class")!="files dir"){
                         command="DEL";
@@ -338,29 +365,47 @@ function excute_control(e){
                         command="DELD";
                     }
                     $(this).closest('.files').remove();
-                    sendCommand(command,filename,"filename","","POST",function(result){
+                    sendCommand(command,filename,"","filename","","POST",function(result){
                                     console.log(result);               
                     });
+                    $(".control_block").remove();
                     break;
         }
 }
 
 //odb command
-function list(filename){
-    $("#post_filename").val(filename);
+function download(filename){
+    $("#get_filename").val(filename);
     document.getElementById('get_form').submit();
 }
-function del(filename){
-    $("#del_filename").val(filename);
-    document.getElementById('del_form').submit();
-}
-function rename(filename,newfilename){
-    $("#o_filename").val(filename);
-    $("#re_filename").val(newfilename);
+function rename(e){
 
-    $("input[name='rename_input']").val(newfilename);
+    var newfilename = $("input[id='newname_block']").val();
+    var filename = $("input[id='newname_block']").attr("placeholder");
+    var type = $(".rename_block").attr("value");
+    
     if(filename!=newfilename){
-        document.getElementById('re_form').submit();
+        console.log("type:"+type+" new:"+newfilename+" old:"+filename);
+        if(type=="files dir"){
+            console.log("rename dir");
+            sendCommand("RENAMED",filename,newfilename,"filename","","POST",function(result){
+                console.log(result);               
+            });
+        }
+        else{
+            console.log("rename file");
+            sendCommand("RENAME",filename,newfilename,"filename","","POST",function(result){
+                console.log(result);               
+            });
+        }
+        /*
+        sendCommand("RENAME",filename,"","filename","","POST",function(result){
+            console.log(result);               
+        });
+        */
+    }
+    else{
+        console.log("nothing change");
     }
 }
 

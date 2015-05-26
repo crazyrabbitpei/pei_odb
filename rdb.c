@@ -40,6 +40,7 @@ int CreateDir(char *name,char *dir_path){
         name_list[index_map].key = hv;
         return -1;
     }
+    strcpy(name_list[index_map].filename,name);
     name_list[index_map].key = hv;
     name_list[index_map].offset = des_offset;
     name_list[index_map].size = StoreGais(name,"dir",0,date,hv,des_file,dir_path);

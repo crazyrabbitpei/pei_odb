@@ -58,9 +58,9 @@ function upload(files,name,cnt,len,type){
                         var contenttype = data.match(/The alleged content type of the file was:.*/);
                         contenttype = contenttype[0].replace("The alleged content type of the file was:","");
                         contenttype = contenttype.replace("<p>","");
-                        cintenttype = contenttype.replace(" ","");
+                        contenttype = contenttype.replace(" ","");
                         
-                        newfile(name,type);
+                        newfile(name,contenttype);
                         
                         cnt++;
                         if(cnt==len){return;}

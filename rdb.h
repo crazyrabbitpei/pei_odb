@@ -4,7 +4,8 @@
 #define READPER  1073741824//1 GB
 #define DATASIZE  1073741824//1 GB
 typedef struct{
-    //char filename[FILENAMELENS];
+    /*dfile_map(record file/dir description's position in dfile file)*/
+    char filename[FILENAMELENS];
     unsigned long int key;
     int offset;
     int size;

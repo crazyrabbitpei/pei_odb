@@ -95,9 +95,17 @@ main#center {
     text-align: left;
     background-color: burlywood;
 }
+#file_config #add_dir {
+    margin: 0px 20px 0px 0px;
+}
+#file_config #sortby {
+        
+}
+
+
 #center #search {
     display: inline;
-    padding-right: 100px;
+    padding-right: 10%;
 }
 #center #search input[type="textarea"]{
     width: 20%;
@@ -117,6 +125,32 @@ main#center {
     height: 80%;
     background-color: aliceblue;
 }
+#file_block .rename_block {
+    display: block;
+    position: absolute;
+    background-color: aquamarine;
+    width: 300px;
+    height: 100px;
+    top: 50%;
+    left: 40%;
+
+}
+.rename_block #newname_block {
+    display: inline;
+    position: relative;
+    width: 70%;
+    height: 30%;
+    margin: 20px 10px 20px 20px;
+    top: 10%;
+    font-size: 15px;
+}
+.rename_block #rename {
+    display: inline;
+    position: relative;
+    top: 10%;
+    font-size: 25px;
+}
+
 #center #page {
     display: block;
     height: 10%;

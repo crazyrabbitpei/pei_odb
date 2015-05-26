@@ -82,8 +82,10 @@
                 <!--<form id="upload" method="POST" action="/pei/odb.cgi" enctype="multipart/form-data">-->
                     <input type="hidden" name="command" value="PUT" />
                     <input type="hidden" name="path" value="" />
-                    <input type="file" name="filename" value=""/>
-                    <input id="upload" type="submit" value="Upload"/>
+                    <div id="upload">
+                        <input type="file" name="filename" value=""/>
+                        <input type="submit" value="Upload"/>
+                    </div>
                 <!--</form>-->
                 <select id=sortby>
                     <option value="upload">Upload Time</option>
@@ -110,24 +112,13 @@
         </aside>
 
     </main>
-    <!--
+    
     <form method="post" id="get_form" action="<?php echo $value; ?>">
         <input id="command" name="command" value="GET">
-        <input id="post_filename" name="filename" value="">
+        <input id="get_filename" name="filename" value="">
         <input type="submit" value="Submit">
     </form>
-    <form method="post" id="del_form" action="<?php echo $value; ?>">
-        <input id="command" name="command" value="DEL">
-        <input id="del_filename" name="filename" value="">
-        <input type="submit" value="Submit">
-    </form>
-    <form method="post" id="re_form" action="<?php echo $value; ?>">
-        <input id="command" name="command" value="RENAME">
-        <input id="o_filename" name="filename" value="">
-        <input id="re_filename" name="newfilename" value="">
-        <input type="submit" value="Submit">
-    </form>
-    -->
+    
     <!--<script src="https://code.jquery.com/jquery-1.10.2.js"></script>-->
     <script src="jquery/jquery-1.10.2.js"></script>
     <script src="jquery/jquery.min.js"></script>
