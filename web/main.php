@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-        <link rel="stylesheet" type="text/css" href="css/main.css">
+        <link rel="stylesheet" type="text/css" href="css/main.css?<?php echo date()?>">
         <title>My cloud</title>
     </head>
     <body>
@@ -116,6 +116,7 @@
     <form method="post" id="get_form" action="<?php echo $value; ?>">
         <input id="command" name="command" value="GET">
         <input id="get_filename" name="filename" value="">
+        <input id="get_fileid" name="getid" value="">
         <input type="submit" value="Submit">
     </form>
     

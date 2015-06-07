@@ -154,19 +154,20 @@ function createFileBlock(command,method,sfilename,test,page,callback){
                      
                      //var filename = data[2].match(/@name:.*/);
                      //filename = filename[0].replace("@name:","");
+                     var id = data[0];
                      var filename = data[1];
                      var type = data[2].match(/@type:.*/);
                      type = type[0].replace("@type:","");
                     var date = data[2].match(/@ctime:.*/);
                     date = date[0].replace("@ctime:","");
-                    file_array.push({name:filename,type:type,date:date});
+                    file_array.push({id:id,name:filename,type:type,date:date});
                 }
                 //sort file by__(default is date)
                 file_array.sort(sortFunction);
                 file_array = JSON.stringify(file_array);
                 file_array = JSON.parse(file_array);
                 for(i=0;i<file_array.length;i++){
-                        newfile(file_array[i].name,file_array[i].type);
+                        newfile(file_array[i].id,file_array[i].name,file_array[i].type);
                 }
 
             },
@@ -185,9 +186,9 @@ function sortFunction(a,b){
     return dateA > dateB ? 1 : -1;
 }
 //show on website
-function newfile(filename,type){
+function newfile(id,filename,type){
         var div = document.createElement("div");
-        console.log("type:"+type);
+        console.log("id:"+id+",type:"+type);
         switch(type){
             case "dir":
                     type = "files dir";
@@ -225,6 +226,7 @@ function newfile(filename,type){
         }
 
         div.setAttribute("class",type);
+        div.setAttribute("value",id);
         document.getElementById("file_block").appendChild(div);
         div.innerHTML = filename;
         if(type=="files dir"){
@@ -288,7 +290,10 @@ function control(e){
                     var blocks = document.createElement("div");
                     var filename = $(this).text();
                     var type = $(this).attr("class");
+                    var id = $(this).attr("value");
                     blocks.setAttribute("class","blocks");
+                    blocks.setAttribute("value",filename);
+
                     this.appendChild(blocks);
                     blocks.setAttribute("style","left:"+e.pageX+"px;top:"+e.pageY+"px");
                     var commands = ['Download','Rename','Delete'];
@@ -297,7 +302,7 @@ function control(e){
                         var t = (i*5);
                         var control_block = document.createElement("div");
                         control_block.setAttribute("class","control_block");
-                        control_block.setAttribute("value",filename);
+                        control_block.setAttribute("value",id);
                         control_block.innerHTML = commands[i];
                         blocks.appendChild(control_block);
                         control_block.setAttribute("style","top:"+t+"px");
@@ -319,14 +324,14 @@ function excute_control(e){
         e.stopPropagation(); // Stops some browsers from redirecting.
         console.log("excute_control:"+$(this).text());
         console.log("filename:"+$(this).attr("value"));
-        var filename = $(this).attr("value");
+        var id = $(this).attr("value");
+        var name = $(this).closest('.blocks').attr("value");
 
         switch($(this).text()){
                 case 'Download'://download
-
                         if($(this).closest('.files').attr("class")!="files dir"){
                             console.log("not dir:"+$(this).closest('.files').attr("class"));
-                            download(filename);
+                            download(id,name);
                         }
                         $(".control_block").remove();
                         break;
@@ -374,8 +379,10 @@ function excute_control(e){
 }
 
 //odb command
-function download(filename){
-    $("#get_filename").val(filename);
+function download(id,name){
+    $("#get_filename").val(name);
+    $("#get_fileid").val(id);
+
     document.getElementById('get_form').submit();
 }
 function rename(e){

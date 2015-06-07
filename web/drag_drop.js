@@ -59,8 +59,10 @@ function upload(files,name,cnt,len,type){
                         contenttype = contenttype[0].replace("The alleged content type of the file was:","");
                         contenttype = contenttype.replace("<p>","");
                         contenttype = contenttype.replace(" ","");
-                        
-                        newfile(name,contenttype);
+                        var id = data.match(/id:[0-9]+/);
+                        id = id[0].replace("id:","");
+                        console.log("id:"+id);
+                        newfile(id,name,contenttype);
                         
                         cnt++;
                         if(cnt==len){return;}
