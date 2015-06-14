@@ -124,8 +124,8 @@
     <script src="jquery/jquery-1.10.2.js"></script>
     <script src="jquery/jquery.min.js"></script>
     <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>-->
-    <script src="drag_drop.js"></script>
-    <script src="command.js"></script>
+    <script src="drag_drop.js?test=<?php echo date()?>"></script>
+    <script src="command.js?<?php echo date()?>"></script>
     </body>
 </html>
 

@@ -34,17 +34,21 @@ function upload(files,name,cnt,len,type){
                 console.log(type);
                 if(type=="muti"){
                   console.log("files:"+name);
+                  console.log("current_id:"+dir_id);
                   formData.append('filename',files[cnt]);
                 }
                 else{
                   console.log("files:"+name);
+                  console.log("current_id:"+dir_id);
                   formData.append('filename',files.files[0]);
                 }
-                  formData.append('command',"PUT");
-                  if(current_dir=="Mydrive"){
-                          current_dir = "/";
-                  }
-                  formData.append('path',current_dir);
+                formData.append('command',"PUT");
+                if(current_dir=="Mydrive"){
+                        current_dir = "/";
+                }
+                //formData.append('path',current_dir);
+                formData.append('path',dir_id);
+
                   $.ajax({
                     'url':'/pei/odb.cgi',
                     'data':formData,
@@ -63,7 +67,7 @@ function upload(files,name,cnt,len,type){
                         id = id[0].replace("id:","");
                         console.log("id:"+id);
                         newfile(id,name,contenttype);
-                        
+                        console.log(data);
                         cnt++;
                         if(cnt==len){return;}
                         upload(files,files[cnt].name,cnt,len,type);

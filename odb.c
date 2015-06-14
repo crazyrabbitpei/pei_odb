@@ -17,18 +17,6 @@ typedef enum{
     ON
 }show;
 
-typedef enum{
-    PUT,
-    GET,
-    LIST,
-    DETAIL,
-    DEL,
-    DELD,
-    RENAME,
-    RENAMED,
-    FIND,
-    CDIR
-}command;
 
 typedef struct{
     /*index file format(record object position in file_[id]) */
@@ -37,12 +25,6 @@ typedef struct{
     int offset;
     int size;
 }detail;
-
-typedef struct{
-    /* filename map to hv(index file) */
-    unsigned long int key;
-} map;
-
 
 typedef struct{
     /*db init setting*/
@@ -65,9 +47,10 @@ unsigned long int hash33(unsigned char *key,unsigned long int size);
 int ReadIniFile(char *filename,int option);
 int ReadIndexFile(char *filename,int option);
 int ReadMapFile(char *filename,int option);
+int ReadDirMapFile(char *filename, int option);
 int ReadNameFile(char *filename,int option, int command, char *relfilename,int page, char *dirname);
 
-void WriteAll(int index_file,int map_file,int ini_file,int name_file,int id_file);
+void WriteAll(int index_file,int map_file,int map_dir,int ini_file,int name_file,int id_file,int id_dir);
 int CheckFile(int fd,char *filename);
 void msg();
 /*-----------------------------------*/
@@ -78,7 +61,7 @@ void msg();
  */
 /*-----------------------------------*/
 unsigned long int GetFile(char *getid,char *filename,int size,int option,char *newfilename,int ini_file,int name_file,char *path);
-int PutFile(char *dir_path ,char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename);
+int PutFile(int dir_path ,char *filename,char *relfilename,int index_file,int map_file,int map_dir,int ini_file,int name_file,char *path,char *newfilename);
 char *Rename(char *getid,char *filename,int option,int ini_file,int name_file,char *path,char *newfilename);
 //TODO : package function
 /*
@@ -87,20 +70,22 @@ char *Rename(char *getid,char *filename,int option,int ini_file,int name_file,ch
  */
 Config dbini[DBININUM];
 detail records[BUCKETNUMBER]={-1};
-map fname_to_hv[BUCKETNUMBER]={-1};
-name name_list[BUCKETNUMBER];
+map file_list[BUCKETNUMBER]={-1};
+dir_map dir_list[BUCKETNUMBER];
     
 
-int index_file,map_file,ini_file,name_file,id_file;
+int index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir;
 //odb
 char index_path[100]="./db/index";
 char db_path[100]="";
 char map_path[100]="./db/map";
+char dir_map_path[100]="./db/dir_map";
 //rdb
-char id_record[100]="./db/id";
+char id_record_file[100]="./db/id_file";
+char id_record_dir[100]="./db/id_dir";
 char dfile_map_path[100]="./db/dfile_map";
 char dfile_path[100]="./db/dfile";
-int id=0;   
+int id,dir_id;   
 //db config
 char config_path[100]="./db/init";
 char result_path[100]="./db/download/";
@@ -127,19 +112,21 @@ void unencode(char *src, char *last, char *dest)
 int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
-    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS];
+    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50];
     int option=-1,cnt,index,page=1;
     char temp[3]="";
     char t[100]="0";
     char path[100]="./db/file_";
-    char type[10],dir_path[FILENAMELENS]="";
+    char type[10];
+    char temp_path[1000];
+    int dir_path,temp_id;
 
 #if 1
     char command[10],*cm;
     char *method;
     int len;
     int m,n;
-    int output,data_file;
+    int output,data_file,des_file;
     char date[50];
     char *input, *data;
 
@@ -164,17 +151,18 @@ int cgiMain()
     }
 
     if(strcmp(command,"PUT")==0){
-        id_file = open(id_record,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
+        id_file = open(id_record_file,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
         read(id_file,t,sizeof(char*));
         id = atoi(t);
         close(id_file);
 
         printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=PUT;
-        if(cgiFormString("path", dir_path, sizeof(dir_path))==cgiFormNotFound){
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
              printf("<p>Path [%s] doesn't exist!</p>",path);
              return 1;
         }
+        dir_path = atoi(temp_path);
     }
     else if(strcmp(command,"GET")==0){
         option=GET;
@@ -200,6 +188,10 @@ int cgiMain()
              printf("<p>Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
         
         if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
              printf("<p>Page [%s] doesn't exist!</p>",temp);
@@ -212,6 +204,10 @@ int cgiMain()
         option=FIND;
         if(cgiFormString("search", filename, sizeof(filename))==cgiFormNotFound){
              printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
              return 1;
         }
         if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
@@ -232,6 +228,15 @@ int cgiMain()
              printf("<p>DEL:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        dir_path = atoi(temp_path);
     }
     else if(strcmp(command,"DELD")==0){
         printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -241,6 +246,15 @@ int cgiMain()
              printf("<p>DEL:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        dir_path = atoi(temp_path);
     }
     else if(strcmp(command,"RENAME")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -253,6 +267,10 @@ int cgiMain()
         if(cgiFormString("newfilename", newfilename, sizeof(newfilename))==cgiFormNotFound){
             printf("New filename?\n");
             return 1;
+        }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
         }
     }
     else if(strcmp(command,"RENAMED")==0){
@@ -267,12 +285,16 @@ int cgiMain()
             printf("New filename?\n");
             return 1;
         }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
     }
     else if(strcmp(command,"CDIR")==0){
-        id_file = open(id_record,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
-        read(id_file,t,sizeof(char*));
-        id = atoi(t);
-        close(id_file);
+        id_dir = open(id_record_dir,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
+        read(id_dir,t,sizeof(char*));
+        dir_id = atoi(t);
+        close(id_dir);
 
         printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=CDIR;
@@ -280,10 +302,11 @@ int cgiMain()
              printf("<p>Foldername [%s] doesn't exist!</p>",filename);
              return 1;
         }
-        if(cgiFormString("path", dir_path, sizeof(dir_path))==cgiFormNotFound){
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
              printf("<p>Path [%s] doesn't exist!</p>",path);
              return 1;
         }
+        dir_path = atoi(temp_path);
         //printf("id:%d->t:%s\n",id,t);
         //return 0;
     }
@@ -370,7 +393,7 @@ int cgiMain()
         GetFileId(path);
         ini_file = open(config_path,O_WRONLY);
         if(CheckFile(ini_file,config_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             //return 0;
             exit(1);
         }
@@ -378,14 +401,19 @@ int cgiMain()
     //TODO:Config by user
     else{//dbini doesn't exist,init now. Also id_record
         ini_file = open(config_path,O_WRONLY|O_CREAT,S_IRWXU);
-        id_file = open(id_record,O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRWXG);
+        id_file = open(id_record_file,O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRWXG);
+        id_dir = open(id_record_dir,O_RDWR|O_CREAT|O_TRUNC,S_IRWXU|S_IRWXG);
         if(CheckFile(ini_file,config_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             exit(1);
         }
         write(id_file,"0",sizeof(char));
+        write(id_dir,"0",sizeof(char));
         id=0;
+        dir_id=0;
         close(id_file);
+        close(id_dir);
+        
 
         dbini[0].DBFILENUM=10;
         dbini[0].MAXDBFILESIZE=DATASIZE;
@@ -398,7 +426,7 @@ int cgiMain()
     if(ReadIndexFile(index_path,OFF)==0){
         index_file = open(index_path,O_WRONLY);
         if(CheckFile(index_file,index_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             //return 0;
             exit(1);
         }
@@ -406,7 +434,7 @@ int cgiMain()
     else{
         index_file = open(index_path,O_WRONLY|O_CREAT,S_IRWXU);
         if(CheckFile(index_file,index_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             //return 0;
             exit(1);
         }
@@ -419,7 +447,7 @@ int cgiMain()
     if(ReadMapFile(map_path,OFF)==0){
         map_file = open(map_path,O_WRONLY);
         if(CheckFile(map_file,map_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             //return 0;
             exit(1);
         }
@@ -427,32 +455,56 @@ int cgiMain()
     else{
         map_file = open(map_path,O_WRONLY|O_CREAT,S_IRWXU);
         if(CheckFile(map_file,map_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             //return 0;
             exit(1);
         }
         for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-            fname_to_hv[cnt].key=-1;
+            file_list[cnt].key=-1;
         }
-        write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
+        write(map_file,file_list,sizeof(map)*BUCKETNUMBER);
     }
-    /*---------------read dfile_map file----------------*/
+    /*---------------read dir_map file----------------*/
+    if(ReadDirMapFile(dir_map_path,OFF)==0){
+        map_dir = open(dir_map_path,O_WRONLY);
+        if(CheckFile(map_dir,dir_map_path)==1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+        }
+    }
+    else{
+        map_dir = open(dir_map_path,O_WRONLY|O_CREAT,S_IRWXU);
+        if(CheckFile(map_dir,dir_map_path)==1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+        }
+        for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+            dir_list[cnt].key=-1;
+        }
+        write(map_dir,dir_list,sizeof(dir_map)*BUCKETNUMBER);
+    }
+    /*---------------read dir_map and file_map----------------*/
     //map for file/dir description(gais reocrd)
+    
     if(ReadNameFile(dfile_map_path,OFF,option,relfilename,page,dirname)==0){
         name_file = open(dfile_map_path,O_WRONLY|O_APPEND);
         if(CheckFile(name_file,dfile_map_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             exit(1);
         }
     }
     else{
         name_file = open(dfile_map_path,O_WRONLY|O_APPEND|O_CREAT,S_IRWXU);
         if(CheckFile(name_file,dfile_map_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             exit(1);
         }
-
+        if(CreateDir("/",-1)==-1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+        }
     }
+    
     ////------------------------------------------------////
     /*   Check if filename exist, and rename for import   */
     /*   status(3) or get the file(1 or 2 )               */
@@ -484,7 +536,7 @@ int cgiMain()
                 //printf("so will rename to [%s]\n",relfilename);
             }
             else if(option==GET){
-                WriteAll(index_file,map_file,ini_file,name_file,id_file);
+                WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
                 return 0;   
             }
 
@@ -494,13 +546,13 @@ int cgiMain()
     /*                      PutFile                       */
     ////------------------------------------------------////
     if(option==PUT){
-        if(PutFile(dir_path,filename,relfilename,index_file,map_file,ini_file,name_file,path,newfilename)==0){//success import
+        if(PutFile(dir_path,filename,relfilename,index_file,map_file,map_dir,ini_file,name_file,path,newfilename)==0){//success import
             printf("Import Success.\n");
         }
         else{
             printf("Nothing import.\n");
         }
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 0;
     }
     ////------------------------------------------------////
@@ -511,21 +563,27 @@ int cgiMain()
     /*  content exists.                                   */
     ////------------------------------------------------////
     if(option==DEL||option==DELD){
-        if((index=GetFile(getid,relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){//if this filename exists
+        if((index=GetFile(getid,relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=-1){//if this filename exists
             //rdb
-            strcpy(name_list[index].filename,"");
-            name_list[index].key = -1;
-            name_list[index].offset = -1;
+            if(option==DELD){
+                des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+                getDir(index,dir_path,des_file,"dir",option);
+                close(des_file);
             //odb
-            if(option==DEL){//Delete dir doesn't need to mark odb file
-                fname_to_hv[index].key=-1;
             }
-            printf("Delete %s [%s]\n",type,relfilename);
+            else if(option==DEL){//Delete dir doesn't need to mark odb file
+                //file_list[index].key = -1;
+                des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+                getDir(index,dir_path,des_file,"file",option);
+                close(des_file);
+
+            }
+            printf("Delete %s [%s],id:%d\n",type,relfilename,index);
         }
         else{ 
             printf("%s [%s] doesn't exist.\n",type,relfilename);
         }
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 0;
     }
 
@@ -541,7 +599,7 @@ int cgiMain()
         char newdate[100];
         char newtype[100];
         int newsize=0,newoffset=0;
-        if((index=GetFile(getid,relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=0){
+        if((index=GetFile(getid,relfilename,strlen(relfilename),option,newfilename,ini_file,name_file,path))!=-1){
             printf("rename file [%s] to ",relfilename);
             strcpy(relfilename,Rename(getid,relfilename,option,ini_file,name_file,path,newfilename));
             printf("[%s]\n",relfilename);
@@ -549,36 +607,42 @@ int cgiMain()
             /*record file/dir 's data position' and reset info which at old name position*/
             //odb
             if(option==RENAME){
-                key = fname_to_hv[index].key;
-                fname_to_hv[index].key=-1;
+                strcpy(file_list[index].filename,"");
+                strcpy(file_list[index].filename,relfilename);
+                //key = file_list[index].key;
+                //file_list[index].key=-1;
             }
             //rdb
-            newsize = name_list[index].size;
-            newoffset = name_list[index].offset;
-            strcpy(name_list[index].filename,"");
-            name_list[index].key = -1;
-            name_list[index].size=-1;
-            name_list[index].offset=-1;
-            
+            else{
+                //newsize = dir_list[index].size;
+                //newoffset = dir_list[index].offset;
+                strcpy(dir_list[index].filename,"");
+                strcpy(dir_list[index].filename,relfilename);
+                //dir_list[index].key = -1;
+                //dir_list[index].size=-1;
+                //dir_list[index].offset=-1;
+            }
             //get new index with new name
-            hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
-            newindex = hv % BUCKETNUMBER;
+            //hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
+            //newindex = hv % BUCKETNUMBER;
 
             //odb
-            if(option==RENAME){
-                fname_to_hv[newindex].key = key;
-            }
+            //if(option==RENAME){
+            //    file_list[newindex].key = key;
+            //}
             //rdb
-            strcpy(name_list[newindex].filename,relfilename);
-            name_list[newindex].key = hv;
-            name_list[newindex].size=newsize;
-            name_list[newindex].offset=newoffset;
-            printf("new key:%lu\tsize:%d\toffset:%s",name_list[newindex].key,name_list[newindex].size,name_list[newindex].filename);
+            /*
+            strcpy(dir_list[newindex].filename,relfilename);
+            dir_list[newindex].key = hv;
+            dir_list[newindex].size=newsize;
+            dir_list[newindex].offset=newoffset;
+            printf("new key:%lu\tsize:%d\toffset:%s",dir_list[newindex].key,dir_list[newindex].size,dir_list[newindex].filename);
+            */
         }
         else{ 
             printf("file [%s] doesn't exist.\n",relfilename);
         }
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 0;
     }
 
@@ -590,22 +654,30 @@ int cgiMain()
         ReadMapFile(map_path,ON);     
     }
     else if(option==LIST){
-        ReadNameFile(dfile_map_path,ON,option,relfilename,page,dirname);     
+        //ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname);     
+        rdb_read(atoi(dirname),column,"dir");
+        return 0;
     }
     else if(option==FIND){
-        if(ReadNameFile(dfile_map_path,ON,option,relfilename,page,dirname)==-1){
+        /*
+        if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
-        }     
+        } 
+        */
         return 0;
     }
     ////------------------------------------------------////
     /*                  Create Folder                     */
     ////------------------------------------------------////
     if(option==CDIR){
-        printf("%d",CreateDir(relfilename,dir_path));
-
+        if((temp_id=CreateDir(relfilename,dir_path))==-1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+        }
+        printf("id:%d",temp_id);
+        //printf("Create dir [%s] success!\n",relfilename);
     }
-    WriteAll(index_file,map_file,ini_file,name_file,id_file);
+    WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
     /*
     close(index_file);
     close(map_file);
@@ -622,22 +694,24 @@ void msg(){
     exit(1);
 }
 
-void WriteAll(int index_file,int map_file,int ini_file,int name_file,int id_file){
+void WriteAll(int index_file,int map_file,int map_dir,int ini_file,int name_file,int id_file,int id_dir){
     /*---------------write file's detail---------------*/    
     //fwrite to file index
     write(index_file,records,sizeof(detail)*BUCKETNUMBER);
     //fwrite to map file
-    write(map_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
+    write(map_file,file_list,sizeof(map)*BUCKETNUMBER);
     //fwrite to name file
-    //write(name_file,name_list,sizeof(name)*BUCKETNUMBER);
+    write(map_dir,dir_list,sizeof(dir_map)*BUCKETNUMBER);
     //fwrite to dbini
     write(ini_file,dbini,sizeof(Config)*DBININUM);
 
     close(index_file);
     close(map_file);
+    close(map_dir);
     close(name_file);
     close(ini_file);
     close(id_file);
+    close(id_dir);
 }
 int GetOffset(int file){
     return lseek(file,0,SEEK_END);
@@ -660,7 +734,7 @@ void GetFileId(char *path){
     sprintf(db_path,"%s%d",path,dbini[0].CURFILEID);
 }
 
-int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int map_file,int ini_file,int name_file,char *path,char *newfilename){
+int PutFile(int dir_path,char *filename,char *relfilename,int index_file,int map_file,int map_dir,int ini_file,int name_file,char *path,char *newfilename){
     char temp[FILENAMELENS];
     char contentType[1024];
     int got;
@@ -697,7 +771,7 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
     GetFileId(path);
     db_file = open(db_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
     if(CheckFile(db_file,db_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 1;
     }
     offset = GetOffset(db_file);
@@ -705,7 +779,7 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
     //read description file to get offset
     des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
     if(CheckFile(des_file,dfile_path)==1){
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 1;
     }
     des_offset = GetOffset(des_file);
@@ -741,7 +815,7 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
         fprintf(cgiOut,"[offset:%d,size:%d->limit %ld size]\n",offset,len,dbini[0].MAXDBFILESIZE);
         if(dbini[0].CURFILEID+1>=dbini[0].DBFILENUM){
             fprintf(cgiOut,"[X] Max File num is %d, current file num is %d\n",dbini[0].DBFILENUM,dbini[0].CURFILEID+1);
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             return 1;
         }
         else{
@@ -754,7 +828,7 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
         close(db_file);
         //db_file = open(db_path,O_WRONLY|O_CREAT,S_IRWXU|S_IRGRP);
         if(CheckFile(db_file,db_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             return 1;
         }
     }   
@@ -803,19 +877,24 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
         */
         
         //rdb
-        fname_to_hv[id].key = index_record;
-        fprintf(cgiOut, "fname_to_hv[%d].key=%d\n",id,fname_to_hv[id].key);
-        printf("id:%d",id);
-        //store gais record to name_list
+        file_list[id].key = index_record;
+        file_list[id].offset = des_offset;
+        strcpy(file_list[id].filename,relfilename);
+        fprintf(cgiOut, "file_list[%d].key=%d\n",id,file_list[id].key);
+        printf("id:%d\n",id);
+        //store gais record to dir_list
         size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
-        rdb_create(relfilename,des_offset,size,dir_path);
+        if(rdb_create(des_file,relfilename,des_offset,size,dir_path,contentType)==-1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+        }
         /*
-        strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-        name_list[index_map].key = hv;
-        name_list[index_map].offset = des_offset;
+        strncpy(dir_list[index_map].filename,relfilename,strlen(relfilename)+1);
+        dir_list[index_map].key = hv;
+        dir_list[index_map].offset = des_offset;
         */
 
-        WriteAll(index_file,map_file,ini_file,name_file,id_file);
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 1;
     }
     //printf("write to index</br>");
@@ -830,27 +909,33 @@ int PutFile(char *dir_path,char *filename,char *relfilename,int index_file,int m
     //store map
     //hv = Gethv((unsigned char *)relfilename,(unsigned long int)strlen(relfilename));
     //index_map = hv % BUCKETNUMBER;
-    fname_to_hv[id].key = index_record;
-    fprintf(cgiOut, "fname_to_hv[%d].key=%d\n",id,fname_to_hv[id].key);
-    printf("id:%d",id);
+    file_list[id].key = index_record;
+    file_list[id].offset = des_offset;
+    strcpy(file_list[id].filename,relfilename);
+    fprintf(cgiOut, "file_list[%d].key=%d\n",id,file_list[id].key);
+    printf("id:%d\n",id);
     
     //rdb
-    //store gais record to name_list
+    //store gais record to dir_list
     size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
-    rdb_create(relfilename,des_offset,size,dir_path);
+
+    if(rdb_create(des_file,relfilename,des_offset,size,dir_path,contentType)==-1){
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+            exit(1);
+    }
     
     /*
-    name_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
+    dir_list[index_map].size = StoreGais(relfilename,contentType,len,date,hv,des_file,dir_path);
     rdb_create(name_file);
     
-    strncpy(name_list[index_map].filename,relfilename,strlen(relfilename)+1);
-    name_list[index_map].key = hv;
-    name_list[index_map].offset = des_offset;
+    strncpy(dir_list[index_map].filename,relfilename,strlen(relfilename)+1);
+    dir_list[index_map].key = hv;
+    dir_list[index_map].offset = des_offset;
     */
   
 #endif
-    WriteAll(index_file,map_file,ini_file,name_file,id_file);
-
+    WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+    close(des_file);
     return 0;
 }
 
@@ -859,7 +944,7 @@ unsigned long int GetFile(char *getid,char *filename,int size,int option,char *n
     int index_record;
     int cnt;
     char *data;
-    int db_file,result,index_file,map_file;
+    int db_file,result,index_file,map_file,map_dir;
     index = atoi(getid);
     //printf("download file [%s],id:%d</br>",filename,index);
 #if 1
@@ -868,30 +953,30 @@ unsigned long int GetFile(char *getid,char *filename,int size,int option,char *n
     index = hv % BUCKETNUMBER;
     */
 
-    //if(strcmp(fname_to_hv[index].filename,filename)==0){
+    //if(strcmp(file_list[index].filename,filename)==0){
     if(option==DELD||option==RENAMED){
-        if(name_list[index].key!=0 && name_list[index].key!=-1){
+        if(dir_list[index].key!=-1){
             return index;
         }
         else{
-            return 0;
+            return -1;
         }
     }
-    //printf("fname_to_hv[%d].key=%d",index,fname_to_hv[index].key);
-    if(fname_to_hv[index].key!=-1){
+    //printf("file_list[%d].key=%d",index,file_list[index].key);
+    if(file_list[index].key!=-1){
         //printf("(filename [%s] exist!)</br>",filename);
         //return 1;
         if(option==FIND||option==PUT||option==RENAME||option==DEL){//option 3 is put status,so just ckeck filename exists or not
             //printf("(filename [%s] exist!)</br>",filename);
             return index;
         }
-        index_record = fname_to_hv[index].key;
+        index_record = file_list[index].key;
         //printf("get file index [%d]:file [%d] %u&#09;%d&#09;%d</br>",index_record,records[index_record].file_id,records[index_record].key,records[index_record].offset,records[index_record].size);
 
         sprintf(db_path,"%s%d",path,records[index_record].file_id);
         db_file = open(db_path,O_RDONLY);
         if(CheckFile(db_file,db_path)==1){
-            WriteAll(index_file,map_file,ini_file,name_file,id_file);
+            WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
             return 1;
         }
         lseek(db_file,records[index_record].offset,SEEK_SET);
@@ -929,8 +1014,8 @@ unsigned long int GetFile(char *getid,char *filename,int size,int option,char *n
                 strcpy(filename,newfilename);
             }
         }
-        //printf("(id %d doesn't exist!),fname[%d].key=%d</br>",index,index,fname_to_hv[index].key);
-        return 0;
+        //printf("(id %d doesn't exist!),fname[%d].key=%d</br>",index,index,file_list[index].key);
+        return -1;
     }
 #endif
 }
@@ -983,9 +1068,11 @@ char *Rename(char *getid,char *filename,int option,int ini_file,int name_file,ch
             }
         }
     }
+    /*
     if(GetFile(getid,new,strlen(new),option,newfilename,ini_file,name_file,path)!=0){//if this filename exists
         new = Rename(getid,new,option,ini_file,name_file,path,newfilename);    
     }
+    */
     return new;
 }
 int CheckFile(int fd,char *filename){
@@ -1051,11 +1138,35 @@ int ReadMapFile(char *filename, int option){
     int cnt=0;
     index_file = open(filename,O_RDONLY);
     if(index_file>=0){
-        read(index_file,fname_to_hv,sizeof(map)*BUCKETNUMBER);
+        read(index_file,file_list,sizeof(map)*BUCKETNUMBER);
         if(option==ON){
             for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                if(fname_to_hv[cnt].key!=-1){
-                    printf("[%d]map file:key:%d</br>",cnt,fname_to_hv[cnt].key);
+                if(file_list[cnt].key!=-1){
+                    printf("[%d]map file:key:%d,filename:%s</br>",cnt,file_list[cnt].key,file_list[cnt].filename);
+                }
+            }
+        }
+        close(index_file);
+        return 0;
+    }
+    else{
+        if(option==ON){
+            printf("Init %s</br>",filename);
+        }
+        close(index_file);
+        return 1;
+    }
+}
+int ReadDirMapFile(char *filename, int option){
+    int index_file;
+    int cnt=0;
+    index_file = open(filename,O_RDONLY);
+    if(index_file>=0){
+        read(index_file,dir_list,sizeof(dir_map)*BUCKETNUMBER);
+        if(option==ON){
+            for(cnt=0;cnt<BUCKETNUMBER;cnt++){
+                if(dir_list[cnt].key!=-1){
+                    printf("[%d]map file:key:%d,filename:%s</br>",cnt,dir_list[cnt].key,dir_list[cnt].filename);
                 }
             }
         }
@@ -1071,40 +1182,45 @@ int ReadMapFile(char *filename, int option){
     }
 }
 int ReadNameFile(char *filename, int option, int command, char *relfilename, int page, char *dirname){
-    /*
-    if(GetFile(dirname,strlen(dirname),option,dirname,0,0,dirname)==0){//if dir not exists
-        printf("[X]");   
-        return -1;
-    }
-    */
     //Read gais records and then parse them
-    int index_file,ds_file;
-    int cnt=0,num=0,i;
+    int file_index;
+    int cnt=0,num=0,i=0;
     int start=(page*16)-16;
     int end = page*16;
-    char temp[100],temp_name[FILENAMELENS];
-    char *data;
+    char temp[RECORDLEN],temp_name[FILENAMELENS],type[100];
+
     char find_path[FILENAMELENS]="";
-    index_file = open(filename,O_RDONLY);
-    ds_file = open(dfile_path,O_RDONLY);
-    /*
-    for(cnt=0;cnt<strlen(relfilename);cnt++){
-        relfilename[cnt] = tolower(relfilename[cnt]);
-    }
-    */
-    if(index_file>=0){
-        //read(index_file,name_list,sizeof(name)*BUCKETNUMBER);
+
+
+    int dir_id = atoi(dirname);
+    file_index = open(filename,O_RDONLY);
+
+    if(file_index>=0){
         if(option==ON){
             if(command==LIST){
+                //get dir's all childs
+                //rdb_read(dir_id,"child","dir");   
+
+#if 0
                 FILE *fp;
-                int fid,name,offset,size;
-                char *delim=",";
+
+
 
                 fp = fopen(filename,"r");
                 while(fgets(temp,100,fp)){
                     //printf("%s",temp);
                     fid = atoi(strtok(temp,delim));
-                    strcpy(temp_name,strtok(NULL,delim));
+                    strcpy(type,strtok(NULL,delim));
+                    if(strcmp(type,"dir")==0){
+                        if(dir_list[fid].key==-1){continue;}
+                        strcpy(temp_name,dir_list[fid].filename);
+                        
+                    }
+                    else{
+                        if(file_list[fid].key==-1){continue;}
+                        strcpy(temp_name,file_list[fid].filename);
+                    }
+
                     offset = atoi(strtok(NULL,delim));
                     size = atoi(strtok(NULL,delim));
 
@@ -1121,19 +1237,19 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
                     
                 }
                 fclose(fp);
-#if 0
+
 
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    //if(strcmp(name_list[cnt].filename,"")!=0){
-                    if(name_list[cnt].key!=0 && name_list[cnt].key!=-1){
+                    //if(strcmp(dir_list[cnt].filename,"")!=0){
+                    if(dir_list[cnt].key!=0 && dir_list[cnt].key!=-1){
                         if(num>=start&&num<end){
 
-                            //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                            //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
-                            //printf("%d,%s,%d</br>",name_list[cnt].key,name_list[cnt].filename,name_list[cnt].offset);
-                            lseek(ds_file,name_list[cnt].offset,SEEK_SET);
-                            data = malloc(sizeof(char)*name_list[cnt].size);
-                            read(ds_file,data,sizeof(char)*(name_list[cnt].size));
+                            //printf("[%d]Filename:%s</br>",cnt,dir_list[cnt].filename);
+                            //printf("%d,%s,%s,%s</br>",dir_list[cnt].size,dir_list[cnt].filename,dir_list[cnt].date,dir_list[cnt].type);
+                            //printf("%d,%s,%d</br>",dir_list[cnt].key,dir_list[cnt].filename,dir_list[cnt].offset);
+                            lseek(ds_file,dir_list[cnt].offset,SEEK_SET);
+                            data = malloc(sizeof(char)*dir_list[cnt].size);
+                            read(ds_file,data,sizeof(char)*(dir_list[cnt].size));
 
                             /*------------*/
                             //judge dirname
@@ -1141,7 +1257,7 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
 
                             if(strstr(data,find_path)){
 
-                                printf("%lu,%s,%s</br>",name_list[cnt].key,name_list[cnt].filename,data);
+                                printf("%lu,%s,%s</br>",dir_list[cnt].key,dir_list[cnt].filename,data);
                             }
                             /*------------*/
                             free(data);
@@ -1159,18 +1275,18 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
             /*
             else if(command==FIND){
                 for(cnt=0;cnt<BUCKETNUMBER;cnt++){
-                    //if(strcmp(name_list[cnt].filename,"")!=0){
-                    if(name_list[cnt].key!=-1){
-                        for(i=0;i<strlen(name_list[cnt].filename);i++){
-                            temp[i] = tolower(name_list[cnt].filename[i]);
+                    //if(strcmp(dir_list[cnt].filename,"")!=0){
+                    if(dir_list[cnt].key!=-1){
+                        for(i=0;i<strlen(dir_list[cnt].filename);i++){
+                            temp[i] = tolower(dir_list[cnt].filename[i]);
                         }
                         temp[i]='\0';
                         if(strstr(temp,relfilename)!=0){
                             if(num>=start&&num<end){
-                                //printf("[%d]Filename:%s</br>",cnt,name_list[cnt].filename);
-                                //printf("%d,%s,%s,%s</br>",name_list[cnt].size,name_list[cnt].filename,name_list[cnt].date,name_list[cnt].type);
-                                //printf("%d,%s,%d</br>",name_list[cnt].key,name_list[cnt].filename,name_list[cnt].offset);
-                                printf("%d,%d</br>",name_list[cnt].key,name_list[cnt].offset);
+                                //printf("[%d]Filename:%s</br>",cnt,dir_list[cnt].filename);
+                                //printf("%d,%s,%s,%s</br>",dir_list[cnt].size,dir_list[cnt].filename,dir_list[cnt].date,dir_list[cnt].type);
+                                //printf("%d,%s,%d</br>",dir_list[cnt].key,dir_list[cnt].filename,dir_list[cnt].offset);
+                                printf("%d,%d</br>",dir_list[cnt].key,dir_list[cnt].offset);
                             }
                             num++;
                             if(num>=end){
@@ -1188,15 +1304,14 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
             }
             */
         }
-        close(index_file);
-        close(ds_file);
+        close(file_index);
         return 0;   
     }
-    else{
+    else{//file doesn't exist
         if(option==ON){
             printf("Init %s</br>",filename);
         }
-        close(index_file);
+        close(file_index);
         return 1;
     }
 }
