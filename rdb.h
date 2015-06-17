@@ -16,7 +16,8 @@ typedef enum{
     RENAME,
     RENAMED,
     FIND,
-    CDIR
+    CDIR,
+    MOVE
 
 }command;
 
@@ -49,6 +50,6 @@ int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int
 int CreateDir(char *name,int dir_path);
 int rdb_create(int fp,char *name,int offset, int size,int parent,char *type);
 int rdb_read(int rid,char *column,char *type);
-void getDir(int cid,int pid,int fp,char *type,int command);
+void getDir(int cid,int pid,int newpid,int fp,char *type,int command);
 unsigned long int Gethv(unsigned char *data,unsigned long int size);
 int GetOffset(int file);

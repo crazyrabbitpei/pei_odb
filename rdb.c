@@ -11,9 +11,10 @@
 
 extern char dfile_path[];
 extern int id,dir_id;
-void getDir(int cid,int pid,int fp,char *type,int command);
+void getDir(int cid,int pid,int newpid,int fp,char *type,int command);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
+int getColumn(char *record,char *column,char *type);
 char *getRecord(int id,char *type);
 void print(int rid,char *type,char *data);
 
@@ -114,7 +115,7 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type){
         free(record);
         close(id_dir);
         if(parent!=-1){
-            getDir(dir_id-1,parent,fp,type,CDIR);
+            getDir(dir_id-1,parent,-1,fp,type,CDIR);
         }
     }
     else{
@@ -130,14 +131,14 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type){
         write(id_file,record,strlen(record));
         free(record);
         close(id_file);
-        getDir(id-1,parent,fp,type,PUT);
+        getDir(id-1,parent,-1,fp,type,PUT);
     }
 
 
     return 0;
     
 }
-void getDir(int cid,int pid,int fp,char *type,int command){
+void getDir(int cid,int pid,int newpid,int fp,char *type,int command){
     char *record;
     int offset;
     record = malloc(sizeof(char)*RECORDLEN);
@@ -150,6 +151,9 @@ void getDir(int cid,int pid,int fp,char *type,int command){
     }
     else if(command==DELD||command==DEL){
         deleteChild(cid,record,type,fp);
+    }
+    else if(command==MOVE){
+
     }
 
     printf("command:%d,dir information:[%s]\n",command,record);
@@ -361,81 +365,22 @@ int rdb_read(int rid,char *column,char *type){
     char *delim2=",\n";
     char *data;
 
-
     //list dir's all childs
     if(strcmp(type,"dir")==0){
         //parse column to get data(id or description)
         if(strcmp(column,"child")==0){//list all childs
-
-
                 data = getRecord(rid,"dir");
+                getColumn(data,"@dchild","dir");
+                getColumn(data,"@fchild","file");
 
-
-                childs = strstr(data,"@dchild");
-                strcpy(temp,childs);
-                //printf("test:%s\n",temp);
-                free(data);
-                //parse childs id
-                dchild = malloc(sizeof(char)*RECORDLEN);
-                fchild = malloc(sizeof(char)*RECORDLEN);
-                dchild = strtok(temp,delim1);
-                fchild = strtok(NULL,delim1);
-
-
-                did =(char**)malloc(sizeof(char*)*IDNUM);
-                fid =(char**)malloc(sizeof(char*)*IDNUM);
-                //get dir id
-                while(*dchild!=':'&&*fchild!=':'){dchild++;fchild++;}
-                dchild++;
-                fchild++;
-                //printf("dchild:%s,fchild:%s",dchild,fchild);
-                if(*dchild!='\n'){
-                        did[i] = strtok(dchild,delim2);
-                        //printf("did:[%s]",did[i]);
-                            data = getRecord(atoi(did[i]),"dir");
-                            print(atoi(did[i]),"dir",data);
-
-                        i++;
-                        while((did[i] = strtok(NULL,delim2))!=NULL){
-                        //printf("!!!test!!!\n");
-                        //return ;
-                                if(strcmp(did[i],"\n")==0){break;}
-                                //printf("[%s]\n",did[i]);
-                                data = getRecord(atoi(did[i]),"dir");
-                                print(atoi(did[i]),"dir",data);
-                                i++;
-
-                        }
-                }
-                else{
-                        printf("none</br>");
-                }
-
-
-
-                //get file id
-                if(*fchild!='\n'){
-                        i=0;
-                        fid[i] = strtok(fchild,delim2);
-                        //printf("fid:[%s]",fid[i]);
-                        data = getRecord(atoi(fid[i]),"file");
-                        print(atoi(fid[i]),"file",data);
-                        i++;
-                        while((fid[i] = strtok(NULL,delim2))!=NULL){
-                                if(strcmp(fid[i],"\n")==0){break;}
-                                //printf("[%s]",fid[i]);
-                                data = getRecord(atoi(fid[i]),"file");
-                                print(atoi(fid[i]),"file",data);
-                                i++;
-                        }
-                }
-                else{
-                        printf("none</br>");
-                }
+        }
+        else if(strcmp(column,"@dchild")==0){
+                data = getRecord(rid,"dir");
+                getColumn(data,"@dchild","dir");
         }
         else{//list childs's total columns
-                data = getRecord(rid,type);
-                print(rid,type,data);
+                //data = getRecord(rid,type);
+                //print(rid,type,data);
         }
         //get record with the id
     }
@@ -473,6 +418,49 @@ void print(int rid,char *type,char *data){
         printf("%d,%s,%s</br>",rid,file_list[rid].filename,data);
     }
     return ;
+}
+int getColumn(char *record,char *column,char *type){
+        char temp[RECORDLEN];
+        char *childs,*fchild,*dchild;
+        char **did,**fid;
+        char *delim1="@";
+        char *delim2=",\n";
+        char *data;
+        int i=0;
+        
+        childs = strstr(record,column);
+        strcpy(temp,childs);
+        //parse childs id
+        dchild = malloc(sizeof(char)*RECORDLEN);
+        dchild = strtok(temp,delim1);
+
+        did =(char**)malloc(sizeof(char*)*IDNUM);
+        //get dir id
+        while(*dchild!=':'){dchild++;;}
+        dchild++;
+        //printf("dchild:%s,fchild:%s",dchild,fchild);
+        if(*dchild!='\n'){
+                did[i] = strtok(dchild,delim2);
+                //printf("did:[%s]",did[i]);
+                data = getRecord(atoi(did[i]),type);
+                print(atoi(did[i]),type,data);
+                i++;
+                while((did[i] = strtok(NULL,delim2))!=NULL){
+                        //printf("!!!test!!!\n");
+                        //return ;
+                        if(strcmp(did[i],"\n")==0){break;}
+                        //printf("[%s]\n",did[i]);
+                        data = getRecord(atoi(did[i]),type);
+                        print(atoi(did[i]),type,data);
+                        i++;
+
+                }
+        }
+        else{
+                printf("none</br>");
+        }
+        return 0;
+        
 }
 int rdb_find(){
     

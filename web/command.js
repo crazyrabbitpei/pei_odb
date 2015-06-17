@@ -27,7 +27,7 @@ $(document).ready(function(){
                     page = result;
                 });
                 */
-                createFileBlock("LIST","POST",dir_id,"demo",page,column,function(result){
+                createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                     page = result;
                 });
                 
@@ -72,7 +72,7 @@ $("#add_dir").click(function(){
             return ;
         }
         
-        sendCommand("CDIR",name,"","","filename",dir_id,"POST",function(result){
+        sendCommand("CDIR",name,"","","filename",dir_id,"","POST",function(result){
             console.log("result:"+result);
             var input= document.getElementsByClassName("files dir");
             var len =document.getElementsByClassName("files dir").length;
@@ -94,12 +94,13 @@ $("#upload").click(function(){
     var file = document.getElementsByName('filename')[0];
     upload(file,file.files[0].name,0,1,"single");
 });
-function sendCommand(command,filename,id,newfilename,par,path,method,callback){
+function sendCommand(command,filename,id,newfilename,par,path,newpath,method,callback){
     var formData = new FormData();
     formData.append(par,filename);
     formData.append('command',command);
     formData.append('newfilename',newfilename);
     formData.append('path',path);
+    formData.append('newpath',newpath);
     formData.append('getid',id);
         $.ajax({
             'url':'/pei/odb.cgi',
@@ -117,44 +118,15 @@ function sendCommand(command,filename,id,newfilename,par,path,method,callback){
         });
 }
 
-function createFileBlock(command,method,sfilename,test,page,column,callback){
-        test="test";
+function createFileBlock(command,method,sfilename,show,page,column,callback){
         $.ajax({
             'url':'/pei/odb.cgi',
             'data': 'command='+command+'&search='+sfilename+'&page='+page+'&column='+column,
             'type': method,
             'success':function(data){
-                $(".files").remove();
-                if(test!="demo"){
-                    //console.log(data);
-                    var arr = data.split("</br>");
-                    console.log(arr);
-                    if(arr==""){
-                        //errMsg("404");
-                        return;
-                    }
-                    if(arr.length==1){
-                        if(test=="down"){
-                            page = page-1;
-                            callback(page);
-                            return ;
-                        }
-                        else if(test=="up"){
-                            page = page+1;
-                            callback(page);
-                            return;
-                        }
-                    }
-                    $(".nothing").remove();
-                    $(".file").remove();
-                    if(arr[0]=="-1,-1,-1,-1"){
-                        return -1;
-                    }
-                }
-                else if(test=="demo"){
-                    console.log(data);
-                    return -1;
-                }
+
+                console.log(data);
+                var arr = data.split("</br>");
                 var filename="";
 
                 var detail=[];
@@ -177,16 +149,63 @@ function createFileBlock(command,method,sfilename,test,page,column,callback){
                         date = date[0].replace("@ctime:","");
                         file_array.push({id:id,name:filename,type:type,date:date});
                 }
-                
-                
                 //sort file by__(default is date)
                 file_array.sort(sortFunction);
                 file_array = JSON.stringify(file_array);
                 file_array = JSON.parse(file_array);
-                for(i=0;i<file_array.length;i++){
-                        newfile(file_array[i].id,file_array[i].name,file_array[i].type);
-                }
                 
+                if(show=="test"){
+                    $(".files").remove();
+                    //console.log(arr);
+                    if(arr==""){
+                        //errMsg("404");
+                        return;
+                    }
+                    if(arr.length==1){
+                        if(show=="down"){
+                            page = page-1;
+                            callback(page);
+                            return ;
+                        }
+                        else if(show=="up"){
+                            page = page+1;
+                            callback(page);
+                            return;
+                        }
+                    }
+
+                    for(i=0;i<file_array.length;i++){
+                        newfile(file_array[i].id,file_array[i].name,file_array[i].type);
+                    }
+                    $(".nothing").remove();
+                    $(".file").remove();
+                }
+                else if(show=="move"){
+                    var block = document.createElement("span");
+                    block.setAttribute("class","move_block");
+                    var check = document.createElement("span");
+                    check.setAttribute("class","move_block_check");
+                    check.innerHTML = "move";
+                    for(i=0;i<file_array.length;i++){
+                        console.log("move list:["+file_array[i].id+"]"+file_array[i].name);
+                        var list = document.createElement("div");
+                        list.setAttribute("class","move_list");
+                        list.setAttribute("value",file_array[i].id);
+                        list.innerHTML = file_array[i].name;
+                        block.appendChild(list);
+
+                    }
+                        var file_block = document.getElementById("file_block");
+                        file_block.appendChild(block);
+                        file_block.appendChild(check);
+
+                    return 0;
+                }
+                else{
+                    console.log(data);
+                    return -1;
+                }
+
 
             },
             'error':function(xhr,ajaxOptions, thrownError){
@@ -284,7 +303,7 @@ function intodir(e){
         });
         */
         
-        createFileBlock("LIST","POST",dir_id,"demo",page,column,function(result){
+        createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                 page = result;
         });
         
@@ -310,7 +329,7 @@ function jumpdir(e){
             page = result;
         });
         */
-        createFileBlock("LIST","POST",dir_id,"demo",page,column,function(result){
+        createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                 page = result;
         });
         
@@ -340,8 +359,8 @@ function control(e){
 
                     this.appendChild(blocks);
                     blocks.setAttribute("style","left:"+e.pageX+"px;top:"+e.pageY+"px");
-                    var commands = ['Download','Rename','Delete'];
-                    for(i=0;i<3;i++){
+                    var commands = ['Download','Rename','Delete','Move to'];
+                    for(i=0;i<commands.length;i++){
                         if(type=="files dir"){type = "dir"; continue;}//dir will not have "download" command
                         var t = (i*5);
                         var control_block = document.createElement("div");
@@ -367,7 +386,7 @@ function excute_control(e){
         e.preventDefault();//取消DOM預設事件
         e.stopPropagation(); // Stops some browsers from redirecting.
         console.log("excute_control:"+$(this).text());
-        console.log("id:"+$(this).attr("value"));
+        console.log("object id:"+$(this).attr("value"));
         var id = $(this).attr("value");
         var filename = $(this).closest('.blocks').attr("value");
 
@@ -410,7 +429,6 @@ function excute_control(e){
                         $(".control_block").remove();
                         break;
                 case 'Delete'://delete
-
                     var command="";
                     if($(this).closest('.files').attr("class")!="files dir"){
                         command="DEL";
@@ -419,11 +437,20 @@ function excute_control(e){
                         command="DELD";
                     }
                     $(this).closest('.files').remove();
-                    sendCommand(command,filename,id,"","filename",dir_id,"POST",function(result){
+                    sendCommand(command,filename,id,"","filename",dir_id,"","POST",function(result){
                                     console.log(result);               
                     });
                     $(".control_block").remove();
                     break;
+                case 'Move to':
+                    var column="@dchild";
+                    console.log("move to");
+                    createFileBlock("LIST","POST",dir_id,"move",page,column,function(result){
+                        page = result;
+                    });
+                    
+                    $(".control_block").remove();
+
         }
 }
 
@@ -448,14 +475,14 @@ function rename(e){
         console.log("type:"+type+" new:"+newfilename+" old:"+filename+" id:"+id);
         if(type=="files dir"){
             console.log("rename dir");
-            sendCommand("RENAMED",filename,id,newfilename,"filename","","POST",function(result){
+            sendCommand("RENAMED",filename,id,newfilename,"filename","","","POST",function(result){
                 console.log(result);
                 $(".dir[value='"+id+"']").text(newfilename);
             });
         }
         else{
             console.log("rename file");
-            sendCommand("RENAME",filename,id,newfilename,"filename","","POST",function(result){
+            sendCommand("RENAME",filename,id,newfilename,"filename","","","POST",function(result){
                 console.log(result);               
                 $("div[value='"+id+"']").text(newfilename);
             });

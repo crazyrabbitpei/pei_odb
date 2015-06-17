@@ -3,6 +3,7 @@
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8" />
         <link rel="stylesheet" type="text/css" href="css/main.css?<?php echo date()?>">
+        <!--<link rel="stylesheet" type="text/css" href="css/main.css?<?php echo date()?>">-->
         <title>My cloud</title>
     </head>
     <body>
@@ -125,7 +126,7 @@
     <script src="jquery/jquery.min.js"></script>
     <!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>-->
     <script src="drag_drop.js?test=<?php echo date()?>"></script>
-    <script src="command.js?<?php echo date()?>"></script>
+    <script src="command.js?test=<?php echo date()?>"></script>
     </body>
 </html>
 

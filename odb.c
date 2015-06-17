@@ -567,14 +567,14 @@ int cgiMain()
             //rdb
             if(option==DELD){
                 des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-                getDir(index,dir_path,des_file,"dir",option);
+                getDir(index,dir_path,-1,des_file,"dir",option);
                 close(des_file);
             //odb
             }
             else if(option==DEL){//Delete dir doesn't need to mark odb file
                 //file_list[index].key = -1;
                 des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-                getDir(index,dir_path,des_file,"file",option);
+                getDir(index,dir_path,-1,des_file,"file",option);
                 close(des_file);
 
             }
@@ -647,23 +647,28 @@ int cgiMain()
     }
 
     ////------------------------------------------------////
-    /*      List:Check data import successfuly or not     */
+    /*      Check data import successfuly or not          */
     ////------------------------------------------------////
     if(option==DETAIL){
         ReadIndexFile(index_path,ON);     
         ReadMapFile(map_path,ON);     
     }
-    else if(option==LIST){
-        //ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname);     
-        rdb_read(atoi(dirname),column,"dir");
-        return 0;
-    }
+
     else if(option==FIND){
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
         } 
         */
+        return 0;
+    }
+
+    ////------------------------------------------------////
+    /*            List data by column and rid             */
+    ////------------------------------------------------////
+    if(option==LIST){
+        //ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname);     
+        rdb_read(atoi(dirname),column,"dir");
         return 0;
     }
     ////------------------------------------------------////
