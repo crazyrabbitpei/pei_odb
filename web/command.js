@@ -1,6 +1,11 @@
 var page=1;
 var current_dir="Mydrive";
 var dir_id="0";
+var pathdir_id= new Array();//for move to
+var pathdir_name= new Array();//for move to
+pathdir_id[0]="0";
+pathdir_name[0]="Mydrive";
+var count_path=0;
 $(document).ready(function(){
                 var column = "child";
                 var title = document.getElementById("dir_name");
@@ -95,6 +100,7 @@ $("#upload").click(function(){
     upload(file,file.files[0].name,0,1,"single");
 });
 function sendCommand(command,filename,id,newfilename,par,path,newpath,method,callback){
+    console.log("id:"+id);
     var formData = new FormData();
     formData.append(par,filename);
     formData.append('command',command);
@@ -119,6 +125,14 @@ function sendCommand(command,filename,id,newfilename,par,path,newpath,method,cal
 }
 
 function createFileBlock(command,method,sfilename,show,page,column,callback){
+        if(show=="MOVED"||show=="MOVEF"){
+            var rid = sfilename;
+            sfilename = "0";
+        }
+        else if(show=="move_list"){
+            var div = document.getElementById("move_block");
+            var rid = div.getAttribute("value");
+        }
         $.ajax({
             'url':'/pei/odb.cgi',
             'data': 'command='+command+'&search='+sfilename+'&page='+page+'&column='+column,
@@ -139,7 +153,19 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                 var file_array =new Array();
                 
                 for(i=0;i<arr.length-1;i++){
-                        if(arr[i]=="none"){continue;}
+                        if(arr[i]=="none,none,none"){
+                            if(show=="move_list"){
+                                    $(".move_list").remove();
+                                    $(".self").remove();
+                                    var block = document.getElementById("list_block");
+                                    var list = document.createElement("div");
+                                    list.setAttribute("class","move_list");
+                                    list.innerHTML = "No folder.";
+                                    block.appendChild(list);
+                                    show = "none";
+                            }
+                            continue;
+                        }
                         var data = arr[i].split(",");
                         var id = data[0];
                         var filename = data[1];
@@ -180,29 +206,77 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                     $(".nothing").remove();
                     $(".file").remove();
                 }
-                else if(show=="move"){
+                else if(show=="MOVED"||show=="MOVEF"){
+                    var move_block = document.createElement("span");
+                    move_block.setAttribute("id","move_block");
+                    move_block.setAttribute("value",rid);
+                    var path = document.createElement("span");
+                    path.setAttribute("id","move_path");
+                    path.innerHTML = "Mydrive";
+                    
                     var block = document.createElement("span");
-                    block.setAttribute("class","move_block");
+                    block.setAttribute("id","list_block");
+                    
+                    var action = document.createElement("span");
+                    action.setAttribute("id","move_block_action");
                     var check = document.createElement("span");
-                    check.setAttribute("class","move_block_check");
+                    check.setAttribute("id","move_block_check");
+                    check.setAttribute("value",show);
                     check.innerHTML = "move";
+                    action.appendChild(check);
+                    $("#move_block_check").val("0");
+                    check.addEventListener("click",move,false);
                     for(i=0;i<file_array.length;i++){
                         console.log("move list:["+file_array[i].id+"]"+file_array[i].name);
                         var list = document.createElement("div");
-                        list.setAttribute("class","move_list");
                         list.setAttribute("value",file_array[i].id);
                         list.innerHTML = file_array[i].name;
+                        if(rid!=file_array[i].id){
+                            list.setAttribute("class","move_list");
+                            list.addEventListener('click',choose,false);
+                            list.addEventListener('dblclick',move_intodir);
+                        }
+                        else{
+                            list.setAttribute("class","self");
+                        }
+
                         block.appendChild(list);
 
+
                     }
+                        move_block.appendChild(path);
+                        move_block.appendChild(block);
+                        move_block.appendChild(action);
                         var file_block = document.getElementById("file_block");
-                        file_block.appendChild(block);
-                        file_block.appendChild(check);
+                        file_block.appendChild(move_block);
 
                     return 0;
                 }
+                else if(show=="move_list"){
+                    $(".move_list").remove();
+                    $(".self").remove();
+                    var block = document.getElementById("list_block");
+
+                    for(i=0;i<file_array.length;i++){
+                        console.log("move->show list:["+file_array[i].id+"]"+file_array[i].name+" array:"+i+" total:"+file_array.length+"rid:"+rid);
+                        var list = document.createElement("div");
+                        list.setAttribute("value",file_array[i].id);
+                        list.innerHTML = file_array[i].name;
+                        if(rid!=file_array[i].id){
+                            list.setAttribute("class","move_list");
+                            list.addEventListener('click',choose,false);
+                            list.addEventListener('dblclick',move_intodir);
+                        }
+                        else{
+                            list.setAttribute("class","self");
+                        }
+
+                        block.appendChild(list);
+                    }
+                    
+                }
                 else{
-                    console.log(data);
+                    console.log("else:"+data);
                     return -1;
                 }
 
@@ -306,11 +380,52 @@ function intodir(e){
         createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                 page = result;
         });
-        
-        
-        
-        
 }
+function move_intodir(e){
+
+        var column = "@dchild";
+        console.log("move->dbclick:"+$(this).text());
+        console.log("move->go to dir id:"+$(this).attr("value"));
+        var id = $(this).attr("value");
+        
+
+        
+        count_path += 1;
+        pathdir_id[count_path] = id;
+        pathdir_name[count_path] = $(this).text();
+        
+        $("#move_block_check").val(pathdir_id[count_path]);
+
+        createFileBlock("LIST","POST",id,"move_list",page,column,function(result){
+                page = result;
+        });
+        
+        var path = document.getElementById("move_path");
+        path.innerHTML="";
+        path.innerHTML = "< " + $(this).text();
+        path.addEventListener("click",move_backtodir,false);
+}
+function move_backtodir(e){
+    if(count_path>0){
+            var column = "@dchild"
+            count_path -=1;
+            console.log("back to:"+pathdir_id[count_path]);
+            $("#move_block_check").val(pathdir_id[count_path]);
+            createFileBlock("LIST","POST",pathdir_id[count_path],"move_list",page,column,function(result){
+                            page = result;
+            });
+            var path = document.getElementById("move_path");
+            path.innerHTML="";
+            if(pathdir_id[count_path]!="0"){
+                    path.innerHTML = "< " + pathdir_name[count_path];
+            }
+            else{
+                    path.innerHTML = pathdir_name[count_path];
+            }
+            path.addEventListener("click",move_backtodir,false);
+    }
+}
+
 function jumpdir(e){
         var column = "child";
         $(this).nextAll().remove();
@@ -430,6 +545,7 @@ function excute_control(e){
                         break;
                 case 'Delete'://delete
                     var command="";
+
                     if($(this).closest('.files').attr("class")!="files dir"){
                         command="DEL";
                     }
@@ -444,8 +560,16 @@ function excute_control(e){
                     break;
                 case 'Move to':
                     var column="@dchild";
-                    console.log("move to");
-                    createFileBlock("LIST","POST",dir_id,"move",page,column,function(result){
+                    console.log("------->"+$(this).closest('.files').attr("class"));
+                    if($(this).closest('.files').attr("class")=="files dir"){
+                        command="MOVED";
+                    }
+                    else{
+                        command="MOVEF";
+                    }
+                    console.log("move:"+command);
+
+                    createFileBlock("LIST","POST",id,command,page,column,function(result){
                         page = result;
                     });
                     
@@ -460,6 +584,30 @@ function download(id,name){
     $("#get_fileid").val(id);
 
     document.getElementById('get_form').submit();
+}
+function choose(e){
+    var list = $(this);
+    var rid = list.attr("value");
+    list.css("background","grey");
+    list.siblings().css("background","");
+    $("#move_block_check").val(rid);
+
+    console.log("choose:"+rid);
+}
+function move(e){
+        var command = "MOVE";
+        console.log("move action:"+$("#move_block_check").val());
+        var div = document.getElementById("move_block");
+        var rid = div.getAttribute("value");
+        var nowdir = dir_id;
+        var newdir = $("#move_block_check").val();
+        var div = document.getElementById("move_block_check");
+        var command = div.getAttribute("value");
+        sendCommand(command,"",rid,"","",nowdir,newdir,"POST",function(result){
+                console.log(result);
+                $("#move_block").remove();
+                $("[class$='dir'][value="+rid+"]").remove();
+        });
 }
 function rename(e){
 

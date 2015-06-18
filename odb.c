@@ -119,7 +119,8 @@ int cgiMain()
     char path[100]="./db/file_";
     char type[10];
     char temp_path[1000];
-    int dir_path,temp_id;
+    char temp_newpath[1000];
+    int dir_path,dir_newpath,temp_id;
 
 #if 1
     char command[10],*cm;
@@ -255,6 +256,48 @@ int cgiMain()
              return 1;
         }
         dir_path = atoi(temp_path);
+    }
+    else if(strcmp(command,"MOVEF")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=MOVEF;
+        strcpy(type,"file");
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        if(cgiFormString("newpath", temp_newpath, sizeof(temp_newpath))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        dir_path = atoi(temp_path);
+        dir_newpath = atoi(temp_newpath);
+        //printf("dir path:%d,new_path:%d,getid:%d",dir_path,dir_newpath,atoi(getid));
+        //return -1;
+    }
+    else if(strcmp(command,"MOVED")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=MOVED;
+        strcpy(type,"dir");
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        if(cgiFormString("path", temp_path, sizeof(temp_path))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        if(cgiFormString("newpath", temp_newpath, sizeof(temp_newpath))==cgiFormNotFound){
+             printf("<p>Path [%s] doesn't exist!</p>",path);
+             return 1;
+        }
+        dir_path = atoi(temp_path);
+        dir_newpath = atoi(temp_newpath);
+        //printf("dir path:%d,new_path:%d,getid:%d",dir_path,dir_newpath,atoi(getid));
+        //return -1;
     }
     else if(strcmp(command,"RENAME")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -552,6 +595,18 @@ int cgiMain()
         else{
             printf("Nothing import.\n");
         }
+        WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
+        return 0;
+    }
+
+    ////------------------------------------------------////
+    /*                  Move folder                       */
+    ////------------------------------------------------////
+    if(option==MOVEF||option==MOVED){
+        des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+        getDir(atoi(getid),dir_path,dir_newpath,des_file,type,option);
+        close(des_file);
+        
         WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 0;
     }

@@ -157,7 +157,7 @@ main#center {
 #center #page {
     position: absolute;
     display: block;
-    height: 10%;
+    height: 40px;
     width: 60%;
     bottom: 0px;
     background-color: black;
@@ -228,28 +228,54 @@ aside#right {
 .control_block:hover{
     background-color: yellow;   
 }
-.move_block{
-    position: relative;
-    display: block;
-    width: 30%;
-    height: 60%;
-    padding: 10px;
-    margin: 0px auto;
-    background: black;
-    opacity: 0.5;
-    overflow: scroll;
-    clear:left;
+#move_block{
+position: fixed;
+display: block;
+clear: left;
+width: 300px;
+height: 300px;
+background: brown;
+padding: 20px;
+margin: 0px auto;
+top: 20%;
+left: 50%;
+margin-left: -150px;
+z-index: 1;
 }
-.move_block_check{
-    position: relative;
-    display: block;
-    background: purple;
-    width: 100px;
-    height: 30px;
-    margin: auto;
+#move_block #move_path{
+display: block;
+background: azure;
+height: 40px;
+line-height: 40px;
 }
-.move_block .move_list{
+#move_block #list_block{
+display: block;
+margin: 10px;
+padding: 10px;
+height: 200px;
+background: chocolate;
+overflow: scroll;
+}
+#move_block #move_block_action{
+display: block;
+height: 25px;
+line-height: 25px;
+background: aliceblue;   
+}
+#move_block #move_block_action #move_block_check{
+display: block;
+width: 100px;
+background: aquamarine;
+border-radius: 10px;
+}
+
+#list_block .move_list{
     color: white;
+    padding: 5px;
+}
+#list_block .self{
+    color: grey;
+    padding: 5px;
 }
 #get_form {
     display: none;

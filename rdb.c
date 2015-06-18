@@ -146,14 +146,25 @@ void getDir(int cid,int pid,int newpid,int fp,char *type,int command){
     lseek(fp,offset,SEEK_SET);
     read(fp,record,sizeof(char)*RECORDLEN);
     lseek(fp,offset,SEEK_SET);//reset dir offset for updating new record
+
     if(command==PUT||command==CDIR){
         appendChild(cid,record,type,fp);
     }
     else if(command==DELD||command==DEL){
         deleteChild(cid,record,type,fp);
     }
-    else if(command==MOVE){
+    else if(command==MOVEF||command==MOVED){
+        deleteChild(cid,record,type,fp);
+        
+        free(record);
+        record = malloc(sizeof(char)*RECORDLEN);
+        offset = dir_list[newpid].offset;
+        lseek(fp,offset,SEEK_SET);
+        read(fp,record,sizeof(char)*RECORDLEN);
+        lseek(fp,offset,SEEK_SET);//reset dir offset for updating new record
 
+        appendChild(cid,record,type,fp);
+        
     }
 
     printf("command:%d,dir information:[%s]\n",command,record);
@@ -244,7 +255,7 @@ int deleteChild(int cid,char *record,char *type,int fp){
             did =(char**)malloc(sizeof(char*)*IDNUM);
             did[i] = strtok(temp2,delim);
             if(strcmp(did[i],"fchild")==0){
-                    printf("none</br>");
+                    printf("none,none,none</br>");
                     return 0;
             }
 
@@ -261,7 +272,7 @@ int deleteChild(int cid,char *record,char *type,int fp){
             totali++;
             while((did[i]=strtok(NULL,delim))!=NULL){
                 if(strcmp(did[i],"fchild")==0){
-                    printf("none</br>");
+                    printf("none,none,none</br>");
                     break;
                 }
                     if(atoi(did[i])==cid){
@@ -457,7 +468,7 @@ int getColumn(char *record,char *column,char *type){
                 }
         }
         else{
-                printf("none</br>");
+                printf("none,none,none</br>");
         }
         return 0;
         

@@ -17,7 +17,8 @@ typedef enum{
     RENAMED,
     FIND,
     CDIR,
-    MOVE
+    MOVEF,
+    MOVED
 
 }command;
 
