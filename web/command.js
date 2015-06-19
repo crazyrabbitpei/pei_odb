@@ -6,6 +6,7 @@ var pathdir_name= new Array();//for move to
 pathdir_id[0]="0";
 pathdir_name[0]="Mydrive";
 var count_path=0;
+var file_array =new Array();
 $(document).ready(function(){
                 var column = "child";
                 var title = document.getElementById("dir_name");
@@ -22,6 +23,7 @@ $(document).ready(function(){
                 path_link.setAttribute("value",0);
                 path_link.innerHTML = dirname;
                 path.appendChild(path_link);
+                path_link.addEventListener("click",jumpdir,false);
                 /*
                 createFileBlock("LIST","POST",current_dir,"normal",page,function(result){
                     page = result;
@@ -77,7 +79,7 @@ $("#add_dir").click(function(){
             return ;
         }
         
-        sendCommand("CDIR",name,"","","filename",dir_id,"","POST",function(result){
+        sendCommand("CDIR","",name,"","","filename",dir_id,"","POST",function(result){
             console.log("result:"+result);
             var input= document.getElementsByClassName("files dir");
             var len =document.getElementsByClassName("files dir").length;
@@ -99,11 +101,13 @@ $("#upload").click(function(){
     var file = document.getElementsByName('filename')[0];
     upload(file,file.files[0].name,0,1,"single");
 });
-function sendCommand(command,filename,id,newfilename,par,path,newpath,method,callback){
-    console.log("id:"+id);
+function sendCommand(command,column,filename,id,newfilename,par,path,newpath,method,callback){
+
+    console.log("id:"+id+" column:"+column+" command:"+command);
     var formData = new FormData();
     formData.append(par,filename);
     formData.append('command',command);
+    formData.append('column',column);
     formData.append('newfilename',newfilename);
     formData.append('path',path);
     formData.append('newpath',newpath);
@@ -133,14 +137,20 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             var div = document.getElementById("move_block");
             var rid = div.getAttribute("value");
         }
+        file_array =new Array();
+        console.log("command:"+command);
+        var temp_file_array = new Array();
         $.ajax({
             'url':'/pei/odb.cgi',
             'data': 'command='+command+'&search='+sfilename+'&page='+page+'&column='+column,
             'type': method,
             'success':function(data){
-
-                console.log(data);
+                if(show=="edit"){
+                    callback("edit:"+data);
+                    return;
+                }
                 var arr = data.split("</br>");
+
                 var filename="";
 
                 var detail=[];
@@ -150,9 +160,8 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                 var filenames = [];
                 var types = [];
                 
-                var file_array =new Array();
-                
                 for(i=0;i<arr.length-1;i++){
+                        //console.log(arr[i]);
                         if(arr[i]=="none,none,none"){
                             if(show=="move_list"){
                                     $(".move_list").remove();
@@ -162,10 +171,15 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                                     list.setAttribute("class","move_list");
                                     list.innerHTML = "No folder.";
                                     block.appendChild(list);
-                                    show = "none";
+                                    callback("No files.");
                             }
-                            continue;
+                            else{
+                                    console.log("show:"+show);
+                                    callback("No files.");
+                            }
+                            return;
                         }
+
                         var data = arr[i].split(",");
                         var id = data[0];
                         var filename = data[1];
@@ -173,12 +187,21 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                         type = type[0].replace("@type:","");
                         var date = data[2].match(/@ctime:.*/);
                         date = date[0].replace("@ctime:","");
-                        file_array.push({id:id,name:filename,type:type,date:date});
+                        var size = data[2].match(/@size:.*/);
+                        size = size[0].replace("@size:","");
+                        var ds = data[2].match(/@ds:.*/);
+                        ds = ds[0].replace("@ds:","");
+                        var tag = data[2].match(/@tag:.*/);
+                        tag = tag[0].replace("@tag:","");
+                        
+                        file_array.push({id:id,name:filename,type:type,date:date,size:size,ds:ds,tag:tag});
+                        temp_file_array.push({id:id,name:filename,type:type,date:date,size:size,ds:ds,tag:tag});
+
                 }
                 //sort file by__(default is date)
-                file_array.sort(sortFunction);
-                file_array = JSON.stringify(file_array);
-                file_array = JSON.parse(file_array);
+                temp_file_array.sort(sortFunction);
+                temp_file_array = JSON.stringify(temp_file_array);
+                temp_file_array = JSON.parse(temp_file_array);
                 
                 if(show=="test"){
                     $(".files").remove();
@@ -200,8 +223,8 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                         }
                     }
 
-                    for(i=0;i<file_array.length;i++){
-                        newfile(file_array[i].id,file_array[i].name,file_array[i].type);
+                    for(i=0;i<temp_file_array.length;i++){
+                        newfile(temp_file_array[i].id,temp_file_array[i].name,temp_file_array[i].type);
                     }
                     $(".nothing").remove();
                     $(".file").remove();
@@ -226,52 +249,47 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                     action.appendChild(check);
                     $("#move_block_check").val("0");
                     check.addEventListener("click",move,false);
-                    for(i=0;i<file_array.length;i++){
-                        console.log("move list:["+file_array[i].id+"]"+file_array[i].name);
-                        var list = document.createElement("div");
-                        list.setAttribute("value",file_array[i].id);
-                        list.innerHTML = file_array[i].name;
-                        if(rid!=file_array[i].id){
-                            list.setAttribute("class","move_list");
-                            list.addEventListener('click',choose,false);
-                            list.addEventListener('dblclick',move_intodir);
-                        }
-                        else{
-                            list.setAttribute("class","self");
-                        }
-
-                        block.appendChild(list);
-
-
-                    }
-                        move_block.appendChild(path);
-                        move_block.appendChild(block);
-                        move_block.appendChild(action);
-                        var file_block = document.getElementById("file_block");
-                        file_block.appendChild(move_block);
+                    
+                    var list = document.createElement("div");
+                    list.setAttribute("value","0");
+                    list.innerHTML = "Mydrive";
+                    list.setAttribute("class","move_list");
+                    list.addEventListener('click',choose,false);
+                    list.addEventListener('dblclick',move_intodir);
+                    block.appendChild(list);
+                    
+                    move_block.appendChild(path);
+                    move_block.appendChild(block);
+                    move_block.appendChild(action);
+                    var file_block = document.getElementById("file_block");
+                    file_block.appendChild(move_block);
 
                     return 0;
                 }
                 else if(show=="move_list"){
                     $(".move_list").remove();
                     $(".self").remove();
+                    var fileORdir = document.getElementById("move_block_check");
+                    var movetype = fileORdir.getAttribute("value");
                     var block = document.getElementById("list_block");
-
-                    for(i=0;i<file_array.length;i++){
-                        console.log("move->show list:["+file_array[i].id+"]"+file_array[i].name+" array:"+i+" total:"+file_array.length+"rid:"+rid);
-                        var list = document.createElement("div");
-                        list.setAttribute("value",file_array[i].id);
-                        list.innerHTML = file_array[i].name;
-                        if(rid!=file_array[i].id){
-                            list.setAttribute("class","move_list");
-                            list.addEventListener('click',choose,false);
-                            list.addEventListener('dblclick',move_intodir);
+                    
+                    for(i=0;i<temp_file_array.length;i++){
+                        console.log("move->show list:["+temp_file_array[i].id+"]"+temp_file_array[i].name+" array:"+i+" total:"+temp_file_array.length+"rid:"+rid+"move type:"+movetype);
+                        if(temp_file_array[i].type=="dir"){
+                                var list = document.createElement("div");
+                                list.setAttribute("value",temp_file_array[i].id);
+                                list.innerHTML = temp_file_array[i].name;
+                                if(movetype=="MOVED"&&rid==temp_file_array[i].id){
+                                        list.setAttribute("class","self");
+                                }
+                                else if((movetype=="MOVED"&&rid!=temp_file_array[i].id)||movetype=="MOVEF"){
+                                        list.setAttribute("class","move_list");
+                                        list.addEventListener('click',choose,false);
+                                        list.addEventListener('dblclick',move_intodir);
+                                }
+                            block.appendChild(list);
                         }
-                        else{
-                            list.setAttribute("class","self");
-                        }
 
-                        block.appendChild(list);
                     }
                     
                 }
@@ -361,7 +379,8 @@ function intodir(e){
         title.innerHTML = $(this).text();
         path.appendChild(path_link);
 
-        $(".path_link").click(jumpdir);
+        //$(".path_link[value="+dir_id+"]").click(jumpdir);
+        path_link.addEventListener("click",jumpdir,false);
 
         $(".files").remove();
         current_dir = $(this).text();//if dir exist
@@ -406,16 +425,17 @@ function move_intodir(e){
         path.addEventListener("click",move_backtodir,false);
 }
 function move_backtodir(e){
+    count_path -=1;
+    var path = document.getElementById("move_path");
+    path.innerHTML="";
     if(count_path>0){
-            var column = "@dchild"
-            count_path -=1;
+            var column = "@dchild";
             console.log("back to:"+pathdir_id[count_path]);
             $("#move_block_check").val(pathdir_id[count_path]);
             createFileBlock("LIST","POST",pathdir_id[count_path],"move_list",page,column,function(result){
                             page = result;
             });
-            var path = document.getElementById("move_path");
-            path.innerHTML="";
+
             if(pathdir_id[count_path]!="0"){
                     path.innerHTML = "< " + pathdir_name[count_path];
             }
@@ -423,6 +443,20 @@ function move_backtodir(e){
                     path.innerHTML = pathdir_name[count_path];
             }
             path.addEventListener("click",move_backtodir,false);
+    }
+    else if(count_path==0){
+            $(".move_list").remove();
+            $(".self").remove();
+            path.innerHTML = pathdir_name[count_path];
+            var block = document.getElementById("list_block");
+            var list = document.createElement("div");
+            list.setAttribute("class","move_list");
+            list.setAttribute("value","0");
+            list.innerHTML = "Mydrive";
+            list.addEventListener('click',choose,false);
+            list.addEventListener('dblclick',move_intodir);
+            block.appendChild(list);
+
     }
 }
 
@@ -439,11 +473,7 @@ function jumpdir(e){
 
         console.log("jump to :"+gopath);
         console.log("jump to id:"+dir_id);
-        /*
-        createFileBlock("LIST","POST",dir_id,"normal",page,function(result){
-            page = result;
-        });
-        */
+        
         createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                 page = result;
         });
@@ -457,8 +487,82 @@ function control(e){
             $(".blocks").remove();
             switch(e.which){
                 case 1://left mouse
-                    console.log("1.GET:"+$(this).text());
+                    var id = $(this).attr("value");
+                    var type = $(this).attr("class");
+                    var file_image = document.getElementById("file_image");
+                    var file_content = document.getElementById("file_content");
+                    var file_descrip = document.getElementById("file_descrip");
+                    var file_tag = document.getElementById("file_tag");
 
+                    var edit1 = document.createElement("img");
+                    edit1.setAttribute("id","edit_descrip");
+                    edit1.setAttribute("value",id);
+                    edit1.setAttribute("onclick","edit_descrips('"+id+"','"+type+"')");
+                    edit1.setAttribute("src","image/pencile.png");
+
+
+                    //$(".edit_descrip").click(edit_descrip);
+
+
+                    var edit2 = document.createElement("img");
+                    edit2.setAttribute("id","edit_tag");
+                    edit2.setAttribute("value",id);
+                    edit2.setAttribute("onclick","edit_tags('"+id+"','"+type+"')");
+                    edit2.setAttribute("src","image/pencile.png");
+
+                    //$(".edit_tag").click(edit_tag);
+
+                    console.log("1.GET:"+$(this).text()+" id:"+id+" type:"+$(this).attr("class"));
+
+                    for(i=0;i<file_array.length;i++){
+                            //console.log("file["+i+"].id:"+file_array[i].id+" type:"+file_array[i].type);
+                            if(type=="files dir"&&file_array[i].type=="dir"&&file_array[i].id==id){
+                                file_image.setAttribute("value",type);
+
+                                file_content.innerHTML = "檔案名稱:"+ file_array[i].name+"</br>";
+                                file_content.innerHTML += " 檔案類型:"+ file_array[i].type+"</br>";
+                                file_content.innerHTML += " 加入日期:"+ file_array[i].date+"</br>";
+
+                                file_descrip.innerHTML ="檔案描述:";
+                                file_tag.innerHTML ="檔案標簽:";
+
+                                file_descrip.appendChild(edit1);
+                                file_tag.appendChild(edit2);
+
+                                
+                                edit1.addEventListener("click",edit_descrip,false);
+                                edit2.addEventListener("click",edit_tag,false);
+
+                                file_descrip.innerHTML +="</br>"+file_array[i].ds;
+                                file_tag.innerHTML +="</br>"+file_array[i].tag;
+
+                                break;
+                            }
+                            else if(type!="files dir"&&file_array[i].type!="dir"&&file_array[i].id==id){
+                                file_image.setAttribute("value",type);
+                                
+                                file_content.innerHTML = "檔案名稱:"+ file_array[i].name+"</br>";
+                                file_content.innerHTML += " 檔案類型:"+ file_array[i].type+"</br>";
+                                file_content.innerHTML += " 檔案大小:"+ file_array[i].size+" KB</br>";
+                                file_content.innerHTML += " 加入日期:"+ file_array[i].date+"</br>";
+                                
+                                file_descrip.innerHTML ="檔案描述:";
+                                file_tag.innerHTML ="檔案標簽:";
+
+                                file_descrip.appendChild(edit1);
+                                file_tag.appendChild(edit2);
+
+                                //edit1.addEventListener("click",edit_descrip,false);
+                                //edit2.addEventListener("click",edit_tag,false);
+                                
+                                file_descrip.innerHTML +="</br>"+file_array[i].ds;
+                                file_tag.innerHTML +="</br>"+file_array[i].tag;
+
+                                
+                                
+                                break;
+                            }
+                    }
                     break;
                 case 2://middle mouse
                     console.log("2");
@@ -553,7 +657,7 @@ function excute_control(e){
                         command="DELD";
                     }
                     $(this).closest('.files').remove();
-                    sendCommand(command,filename,id,"","filename",dir_id,"","POST",function(result){
+                    sendCommand(command,"",filename,id,"","filename",dir_id,"","POST",function(result){
                                     console.log(result);               
                     });
                     $(".control_block").remove();
@@ -603,11 +707,51 @@ function move(e){
         var newdir = $("#move_block_check").val();
         var div = document.getElementById("move_block_check");
         var command = div.getAttribute("value");
-        sendCommand(command,"",rid,"","",nowdir,newdir,"POST",function(result){
+        sendCommand(command,"","",rid,"","",nowdir,newdir,"POST",function(result){
                 console.log(result);
+                var fileORdir = document.getElementById("move_block_check");
+                var type = fileORdir.getAttribute("value");
                 $("#move_block").remove();
-                $("[class$='dir'][value="+rid+"]").remove();
+                if(type=="MOVED"){
+                    $("[class$='dir'][value="+rid+"]").remove();
+                }
+                else{
+                    $("[value="+rid+"]").not('files dir').remove();
+                }
         });
+}
+function edit_descrips(id,type){
+    console.log("edit_descrip");
+    console.log("type:"+type+" id:"+id);
+    var column = "ds";
+    if(type=="files dir"){
+        createFileBlock("EDITD","POST",id,"edit",page,column,function(result){
+                page = result;
+        });
+    }
+    else{
+        createFileBlock("EDITF","POST",id,"edit",page,column,function(result){
+                page = result;
+        });
+    }
+
+}
+function edit_tags(id,type){
+    console.log("edit_tag");
+    console.log("type:"+type+" id:"+id);
+    var column = "tag";
+    if(type=="files dir"){
+        sendCommand("EDITD",column,"",id,"","","","","POST",function(result){
+            console.log(result);               
+                        
+        });
+    }
+    else{
+        sendCommand("EDITF",column,"",id,"","","","","POST",function(result){
+            console.log(result);               
+                        
+        });
+    }
 }
 function rename(e){
 

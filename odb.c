@@ -333,6 +333,34 @@ int cgiMain()
              return 1;
         }
     }
+    else if(strcmp(command,"EDITF")==0){
+        option=EDITF;
+        strcpy(type,"file");
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("search", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        return 0;
+    }
+    else if(strcmp(command,"EDITD")==0){
+        option=EDITD;
+        strcpy(type,"dir");
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        return 0;
+    }
     else if(strcmp(command,"CDIR")==0){
         id_dir = open(id_record_dir,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
         read(id_dir,t,sizeof(char*));

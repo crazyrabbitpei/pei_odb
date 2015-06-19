@@ -51,16 +51,11 @@
 
     <main id="main_block">
         <aside id="left">
-            
             <section id="file_info">
-                <img>
-                </img>
-                <detail id="descrip">
-                    <article>
-                    </article>
-                </detail>
-                <nav>
-                </nav>
+                <div id="file_image"></div>
+                <div id="file_content"></div>
+                <div id="file_descrip"></div>
+                <div id="file_tag"></div>
             </section>
             <div id="upload_status">
             </div>

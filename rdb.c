@@ -23,7 +23,7 @@ int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int
     int size;
     record = malloc(sizeof(char)*RECORDLEN);
     //sprintf(record,"@\n@type:%s\n@ctime:%s@size:%d\n",type,date,len);
-    sprintf(record,"@\n@type:%s\n@ctime:%s@size:%d\n@path:%d\n@dchild:\n@fchild:\n",type,date,len,rid);
+    sprintf(record,"@\n@type:%s\n@ctime:%s@size:%d\n@ds:\n@tag:\n@path:%d\n@dchild:\n@fchild:\n",type,date,len,rid);
     write(fp,record,sizeof(char)*RECORDLEN);
     size = strlen(record);
     free(record);
@@ -468,7 +468,7 @@ int getColumn(char *record,char *column,char *type){
                 }
         }
         else{
-                printf("none,none,none</br>");
+                //printf("none,none,none</br>");
         }
         return 0;
         

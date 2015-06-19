@@ -18,8 +18,9 @@ typedef enum{
     FIND,
     CDIR,
     MOVEF,
-    MOVED
-
+    MOVED,
+    EDITF,
+    EDITD
 }command;
 
 //rdb
