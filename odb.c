@@ -112,7 +112,7 @@ void unencode(char *src, char *last, char *dest)
 int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
-    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50];
+    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50],newdata[1000];
     int option=-1,cnt,index,page=1;
     char temp[3]="";
     char t[100]="0";
@@ -129,7 +129,7 @@ int cgiMain()
     int m,n;
     int output,data_file,des_file;
     char date[50];
-    char *input, *data;
+    char *input, *data,*content;
 
 
     input = malloc(sizeof(char)*DATASIZE);
@@ -141,6 +141,7 @@ int cgiMain()
         printf("<p>Method wrong.</p>");
         return 1;
     }
+
     //fprintf(cgiOut,"<p>method:%s</p>",method);
     ////------------------------------------------------////
     /*                   Command  detect                  */
@@ -334,20 +335,26 @@ int cgiMain()
         }
     }
     else if(strcmp(command,"EDITF")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=EDITF;
         strcpy(type,"file");
         if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
              printf("<p>Column [%s] doesn't exist!</p>",filename);
              return 1;
         }
-        if(cgiFormString("search", getid, sizeof(getid))==cgiFormNotFound){
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
              printf("<p>id [%s] doesn't exist!</p>",getid);
              return 1;
         }
-        printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
-        return 0;
+        if(cgiFormString("newdata", newdata, sizeof(newdata))==cgiFormNotFound){
+             printf("<p>newdata [%s] doesn't exist!</p>",newdata);
+             return 1;
+        }
+        //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        //return 0;
     }
     else if(strcmp(command,"EDITD")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=EDITD;
         strcpy(type,"dir");
         if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
@@ -358,8 +365,12 @@ int cgiMain()
              printf("<p>id [%s] doesn't exist!</p>",getid);
              return 1;
         }
-        printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
-        return 0;
+        if(cgiFormString("newdata", newdata, sizeof(newdata))==cgiFormNotFound){
+             printf("<p>newdata [%s] doesn't exist!</p>",newdata);
+             return 1;
+        }
+        //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        //return 0;
     }
     else if(strcmp(command,"CDIR")==0){
         id_dir = open(id_record_dir,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
@@ -632,7 +643,7 @@ int cgiMain()
     ////------------------------------------------------////
     if(option==MOVEF||option==MOVED){
         des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-        getDir(atoi(getid),dir_path,dir_newpath,des_file,type,option);
+        getDir(atoi(getid),dir_path,dir_newpath,des_file,type,option,"");
         close(des_file);
         
         WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
@@ -650,14 +661,14 @@ int cgiMain()
             //rdb
             if(option==DELD){
                 des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-                getDir(index,dir_path,-1,des_file,"dir",option);
+                getDir(index,dir_path,-1,des_file,"dir",option,"");
                 close(des_file);
             //odb
             }
             else if(option==DEL){//Delete dir doesn't need to mark odb file
                 //file_list[index].key = -1;
                 des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
-                getDir(index,dir_path,-1,des_file,"file",option);
+                getDir(index,dir_path,-1,des_file,"file",option,"");
                 close(des_file);
 
             }
@@ -669,6 +680,25 @@ int cgiMain()
         WriteAll(index_file,map_file,map_dir,ini_file,name_file,id_file,id_dir);
         return 0;
     }
+
+    ////------------------------------------------------////
+    /*                  EDIT file                         */
+    ////------------------------------------------------////
+    if(option==EDITF||option==EDITD){
+        printf("-->id:%d,column:%s,type:%s,newdata:%s\n",atoi(getid),column,type,newdata);
+        
+        des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
+        rdb_update(atoi(getid),des_file,type,option,column,newdata);
+        close(des_file);
+        
+        return 0;
+    }
+    if(option==READF||option==READD){
+        content = rdb_read(atoi(getid),column,type);
+        printf("%s:%s\n",column,content);
+        return 0;
+    }
+
 
     ////------------------------------------------------////
     /*                  Rename file                       */

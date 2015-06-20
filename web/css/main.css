@@ -196,14 +196,12 @@ aside#left #file_info #file_descrip{
 position: relative;
 display: block;
 width: 100%;
-height: 100px;
 background: aquamarine;
 }
 aside#left #file_info #file_tag{
 position: relative;
 display: block;
 width: 100%;
-height: 50px;
 background: cadetblue;
 bottom : 0px;
 }
@@ -212,6 +210,18 @@ aside#left #edit_descrip{
 }
 aside#left #edit_tag{
   width: 30px;
+}
+aside#left #des_block{
+display: block;
+width: 95%;
+margin: 5px auto;
+word-break: break-all;
+}
+aside#left #tag_block{
+display: block;
+width: 95%;
+margin: 5px auto;
+word-break: break-all;
 }
 aside#left #upload_status {
     display: block;

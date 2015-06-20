@@ -79,7 +79,7 @@ $("#add_dir").click(function(){
             return ;
         }
         
-        sendCommand("CDIR","",name,"","","filename",dir_id,"","POST",function(result){
+        sendCommand("CDIR","",name,"","","filename",dir_id,"","POST","",function(result){
             console.log("result:"+result);
             var input= document.getElementsByClassName("files dir");
             var len =document.getElementsByClassName("files dir").length;
@@ -101,7 +101,7 @@ $("#upload").click(function(){
     var file = document.getElementsByName('filename')[0];
     upload(file,file.files[0].name,0,1,"single");
 });
-function sendCommand(command,column,filename,id,newfilename,par,path,newpath,method,callback){
+function sendCommand(command,column,filename,id,newfilename,par,path,newpath,method,newdata,callback){
 
     console.log("id:"+id+" column:"+column+" command:"+command);
     var formData = new FormData();
@@ -112,6 +112,7 @@ function sendCommand(command,column,filename,id,newfilename,par,path,newpath,met
     formData.append('path',path);
     formData.append('newpath',newpath);
     formData.append('getid',id);
+    formData.append('newdata',newdata);
         $.ajax({
             'url':'/pei/odb.cgi',
             'data':formData,
@@ -119,7 +120,7 @@ function sendCommand(command,column,filename,id,newfilename,par,path,newpath,met
             'contentType': false,  // tell jQuery not to set contentType
             'type':method,
             'success':function(data){
-                callback(data);
+                callback("["+data+"]");
             },
             'error':function(xhr,ajaxOptions, thrownError){
                         console.log(xhr.status);
@@ -138,17 +139,13 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             var rid = div.getAttribute("value");
         }
         file_array =new Array();
-        console.log("command:"+command);
+        console.log("command:"+command+' command='+command+'&search='+sfilename+'&page='+page+'&column='+column);
         var temp_file_array = new Array();
         $.ajax({
             'url':'/pei/odb.cgi',
             'data': 'command='+command+'&search='+sfilename+'&page='+page+'&column='+column,
             'type': method,
             'success':function(data){
-                if(show=="edit"){
-                    callback("edit:"+data);
-                    return;
-                }
                 var arr = data.split("</br>");
 
                 var filename="";
@@ -497,19 +494,24 @@ function control(e){
                     var edit1 = document.createElement("img");
                     edit1.setAttribute("id","edit_descrip");
                     edit1.setAttribute("value",id);
-                    edit1.setAttribute("onclick","edit_descrips('"+id+"','"+type+"')");
+                    //edit1.setAttribute("onclick","edit_descrips('"+id+"','"+type+"')");
+                    edit1.setAttribute("onclick","edit_des_block('"+id+"','"+type+"')");
                     edit1.setAttribute("src","image/pencile.png");
-
-
+                    
                     //$(".edit_descrip").click(edit_descrip);
 
 
                     var edit2 = document.createElement("img");
                     edit2.setAttribute("id","edit_tag");
                     edit2.setAttribute("value",id);
-                    edit2.setAttribute("onclick","edit_tags('"+id+"','"+type+"')");
+                    //edit2.setAttribute("onclick","edit_tags('"+id+"','"+type+"')");
+                    edit2.setAttribute("onclick","edit_tag_block('"+id+"','"+type+"')");
                     edit2.setAttribute("src","image/pencile.png");
 
+                    var des_block = document.createElement("div");
+                    des_block.setAttribute("id","des_block");
+                    var tag_block = document.createElement("div");
+                    tag_block.setAttribute("id","tag_block");
                     //$(".edit_tag").click(edit_tag);
 
                     console.log("1.GET:"+$(this).text()+" id:"+id+" type:"+$(this).attr("class"));
@@ -529,9 +531,13 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
 
-                                
-                                edit1.addEventListener("click",edit_descrip,false);
-                                edit2.addEventListener("click",edit_tag,false);
+                                file_descrip.appendChild(des_block);
+                                file_tag.appendChild(tag_block);
+                                //edit1.addEventListener("click",edit_descrip,false);
+                                //edit2.addEventListener("click",edit_tag,false);
+
+                                //des_block.addEventListener("click",edit_des_block,false);
+                                //tag_block.addEventListener("click",edit_tag_block,false);
 
                                 file_descrip.innerHTML +="</br>"+file_array[i].ds;
                                 file_tag.innerHTML +="</br>"+file_array[i].tag;
@@ -552,14 +558,14 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
 
+                                file_descrip.appendChild(des_block);
+                                file_tag.appendChild(tag_block);
                                 //edit1.addEventListener("click",edit_descrip,false);
                                 //edit2.addEventListener("click",edit_tag,false);
                                 
                                 file_descrip.innerHTML +="</br>"+file_array[i].ds;
                                 file_tag.innerHTML +="</br>"+file_array[i].tag;
 
-                                
-                                
                                 break;
                             }
                     }
@@ -657,7 +663,7 @@ function excute_control(e){
                         command="DELD";
                     }
                     $(this).closest('.files').remove();
-                    sendCommand(command,"",filename,id,"","filename",dir_id,"","POST",function(result){
+                    sendCommand(command,"",filename,id,"","filename",dir_id,"","POST","",function(result){
                                     console.log(result);               
                     });
                     $(".control_block").remove();
@@ -707,7 +713,7 @@ function move(e){
         var newdir = $("#move_block_check").val();
         var div = document.getElementById("move_block_check");
         var command = div.getAttribute("value");
-        sendCommand(command,"","",rid,"","",nowdir,newdir,"POST",function(result){
+        sendCommand(command,"","",rid,"","",nowdir,newdir,"POST","",function(result){
                 console.log(result);
                 var fileORdir = document.getElementById("move_block_check");
                 var type = fileORdir.getAttribute("value");
@@ -723,15 +729,16 @@ function move(e){
 function edit_descrips(id,type){
     console.log("edit_descrip");
     console.log("type:"+type+" id:"+id);
-    var column = "ds";
+    var column = "@ds";
+    var newdata;
     if(type=="files dir"){
-        createFileBlock("EDITD","POST",id,"edit",page,column,function(result){
-                page = result;
+        sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+            console.log(result);               
         });
     }
     else{
-        createFileBlock("EDITF","POST",id,"edit",page,column,function(result){
-                page = result;
+        sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+            console.log(result);               
         });
     }
 
@@ -739,19 +746,67 @@ function edit_descrips(id,type){
 function edit_tags(id,type){
     console.log("edit_tag");
     console.log("type:"+type+" id:"+id);
-    var column = "tag";
+    var column = "@tag";
+    var newdata;
     if(type=="files dir"){
-        sendCommand("EDITD",column,"",id,"","","","","POST",function(result){
+        sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
             console.log(result);               
                         
         });
     }
     else{
-        sendCommand("EDITF",column,"",id,"","","","","POST",function(result){
+        sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
             console.log(result);               
                         
         });
     }
+}
+function edit_des_block(id,type){
+    var data = $("div#des_block").text();
+    console.log("edit_des_block:id:"+id+" type:"+type+" data:"+data);
+    $("div#des_block").replaceWith("<textarea id='des_block' paceholder='檔案描述'></textarea>");
+    $("textarea#des_block").val(data);
+    $("textarea#des_block").focusout(function(){
+        var newdata = $("textarea#des_block").val();
+        var column = "@ds";
+        console.log("text:"+newdata);
+        $("textarea#des_block").replaceWith("<div id='des_block'>"+newdata+"</div>");
+        
+        if(type=="files dir"){
+            sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+                console.log("EDITD:"+result);               
+            });
+        }
+        else{
+            sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+                console.log("EDITF:"+result);               
+            });
+        }
+    });
+}
+function edit_tag_block(id,type){
+    var data = $("div#tag_block").text();
+    console.log("edit_tag_block:id:"+id+" type:"+type+" data:"+data);
+    $("div#tag_block").replaceWith("<textarea id='tag_block' paceholder='檔案描述'></textarea>");
+    $("textarea#tag_block").val(data);
+    $("textarea#tag_block").focusout(function(){
+        var newdata = $("textarea#tag_block").val();
+        var column = "@tag";
+        console.log("text:"+newdata);
+        $("textarea#tag_block").replaceWith("<div id='tag_block'>"+newdata+"</div>");
+        
+        if(type=="files dir"){
+            sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+                console.log(result);               
+
+            });
+        }
+        else{
+            sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+                console.log(result);               
+            });
+        }
+    });
 }
 function rename(e){
 
@@ -767,14 +822,14 @@ function rename(e){
         console.log("type:"+type+" new:"+newfilename+" old:"+filename+" id:"+id);
         if(type=="files dir"){
             console.log("rename dir");
-            sendCommand("RENAMED",filename,id,newfilename,"filename","","","POST",function(result){
+            sendCommand("RENAMED",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);
                 $(".dir[value='"+id+"']").text(newfilename);
             });
         }
         else{
             console.log("rename file");
-            sendCommand("RENAME",filename,id,newfilename,"filename","","","POST",function(result){
+            sendCommand("RENAME",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);               
                 $("div[value='"+id+"']").text(newfilename);
             });

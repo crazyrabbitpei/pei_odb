@@ -11,10 +11,11 @@
 
 extern char dfile_path[];
 extern int id,dir_id;
-void getDir(int cid,int pid,int newpid,int fp,char *type,int command);
+void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
+int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
-int getColumn(char *record,char *column,char *type);
+char *getColumn(char *record,char *column,char *type);
 char *getRecord(int id,char *type);
 void print(int rid,char *type,char *data);
 
@@ -115,7 +116,7 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type){
         free(record);
         close(id_dir);
         if(parent!=-1){
-            getDir(dir_id-1,parent,-1,fp,type,CDIR);
+            getDir(dir_id-1,parent,-1,fp,type,CDIR,"");
         }
     }
     else{
@@ -131,14 +132,14 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type){
         write(id_file,record,strlen(record));
         free(record);
         close(id_file);
-        getDir(id-1,parent,-1,fp,type,PUT);
+        getDir(id-1,parent,-1,fp,type,PUT,"");
     }
 
 
     return 0;
     
 }
-void getDir(int cid,int pid,int newpid,int fp,char *type,int command){
+void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column){
     char *record;
     int offset;
     record = malloc(sizeof(char)*RECORDLEN);
@@ -166,6 +167,11 @@ void getDir(int cid,int pid,int newpid,int fp,char *type,int command){
         appendChild(cid,record,type,fp);
         
     }
+    /*
+    else if(command==EDITF||command==EDITD){
+        rdb_update(cid,record,type,fp,column);
+    }
+    */
 
     printf("command:%d,dir information:[%s]\n",command,record);
     free(record);
@@ -366,11 +372,11 @@ int deleteChild(int cid,char *record,char *type,int fp){
     return 0;
 
 }
-int rdb_read(int rid,char *column,char *type){
+char *rdb_read(int rid,char *column,char *type){
     int ds_file,i=0;
     int name,offset,size;
     char temp[RECORDLEN];
-    char *childs,*fchild,*dchild;
+    char *content;
     char **did,**fid;
     char *delim1="@";
     char *delim2=",\n";
@@ -390,18 +396,20 @@ int rdb_read(int rid,char *column,char *type){
                 getColumn(data,"@dchild","dir");
         }
         else{//list childs's total columns
-                //data = getRecord(rid,type);
-                //print(rid,type,data);
+                data = getRecord(rid,type);
+                content = getColumn(data,column,type);
+                //print(rid,type,content);
         }
         //get record with the id
     }
     else if(strcmp(type,"file")==0){
-        //parse column to get data(id or description)
-        //get record with the id
+                data = getRecord(rid,type);
+                content = getColumn(data,column,type);
+                //print(rid,type,content);
     }
     
     free(data);
-    return 0;
+    return content;
 }
 char *getRecord(int rid,char *type){
         int offset;
@@ -430,7 +438,7 @@ void print(int rid,char *type,char *data){
     }
     return ;
 }
-int getColumn(char *record,char *column,char *type){
+char *getColumn(char *record,char *column,char *type){
         char temp[RECORDLEN];
         char *childs,*fchild,*dchild;
         char **did,**fid;
@@ -438,7 +446,8 @@ int getColumn(char *record,char *column,char *type){
         char *delim2=",\n";
         char *data;
         int i=0;
-        
+
+
         childs = strstr(record,column);
         strcpy(temp,childs);
         //parse childs id
@@ -447,28 +456,40 @@ int getColumn(char *record,char *column,char *type){
 
         did =(char**)malloc(sizeof(char*)*IDNUM);
         //get dir id
-        while(*dchild!=':'){dchild++;;}
+        while(*dchild!=':'){dchild++;}
         dchild++;
-        //printf("dchild:%s,fchild:%s",dchild,fchild);
+
         if(*dchild!='\n'){
-                did[i] = strtok(dchild,delim2);
-                //printf("did:[%s]",did[i]);
-                data = getRecord(atoi(did[i]),type);
-                print(atoi(did[i]),type,data);
-                i++;
-                while((did[i] = strtok(NULL,delim2))!=NULL){
-                        //printf("!!!test!!!\n");
-                        //return ;
-                        if(strcmp(did[i],"\n")==0){break;}
-                        //printf("[%s]\n",did[i]);
+                if(strcmp(column,"@fchild")==0||strcmp(column,"@dchild")==0){
+                        did[i] = strtok(dchild,delim2);
+                        //printf("did:[%s]",did[i]);
                         data = getRecord(atoi(did[i]),type);
                         print(atoi(did[i]),type,data);
                         i++;
+                        while((did[i] = strtok(NULL,delim2))!=NULL){
+                                //printf("!!!test!!!\n");
+                                //return ;
+                                if(strcmp(did[i],"\n")==0){break;}
+                                //printf("[%s]\n",did[i]);
+                                data = getRecord(atoi(did[i]),type);
+                                print(atoi(did[i]),type,data);
+                                i++;
 
+                        }
+                }
+                else{
+                    //printf("record:%s,column:%s,type:%s\n",record,column,type);
+                    //printf("dchild:%s\n",dchild);
+                    return dchild;
                 }
         }
         else{
-                //printf("none,none,none</br>");
+            if(strcmp(column,"@fchild")==0||strcmp(column,"@dchild")==0){
+            }
+            else{
+                return dchild;
+            }
+
         }
         return 0;
         
@@ -476,7 +497,38 @@ int getColumn(char *record,char *column,char *type){
 int rdb_find(){
     
 }
-int rdb_update(){
+int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata){
+    char *record;
+    char *p1,*p2,*temp1,temp2[1000];
+    int offset;
+    record = malloc(sizeof(char)*RECORDLEN);
+    if(strcmp(type,"dir")==0){
+        offset = dir_list[cid].offset;
+    }
+    else{ 
+        offset = file_list[cid].offset;
+    }
+    lseek(fp,offset,SEEK_SET);
+    read(fp,record,sizeof(char)*RECORDLEN);
+    lseek(fp,offset,SEEK_SET);//reset dir offset for updating new record
+    
+    printf("cid:%d,type:%s,column:%s\nrecord:%s\nnewdata:%s\n",cid,type,column,record,newdata);
+    
+    p1 = strstr(record,column);
+    temp1 = p1;
+    temp1++;
+    p2 = strstr(temp1,"@");
+    strcpy(temp2,p2);
+    
+    printf("p1:%s\np2:%s\n",p1,p2);
+    
+    while(*temp1!=':'){temp1++;}
+    temp1++;
+    sprintf(temp1,"%s\n%s",newdata,temp2);
+
+    printf("result:%s",record);
+    
+    return 0;
 }
 int rdb_delete(){
 }
