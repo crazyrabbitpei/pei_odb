@@ -446,7 +446,9 @@ char *getColumn(char *record,char *column,char *type){
         char *delim2=",\n";
         char *data;
         int i=0;
-
+        if(strcmp(column,"all")==0){
+                return record;
+        }
 
         childs = strstr(record,column);
         strcpy(temp,childs);
@@ -512,7 +514,7 @@ int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata)
     read(fp,record,sizeof(char)*RECORDLEN);
     lseek(fp,offset,SEEK_SET);//reset dir offset for updating new record
     
-    printf("cid:%d,type:%s,column:%s\nrecord:%s\nnewdata:%s\n",cid,type,column,record,newdata);
+    //printf("cid:%d,type:%s,column:%s\nrecord:%s\nnewdata:%s\n",cid,type,column,record,newdata);
     
     p1 = strstr(record,column);
     temp1 = p1;
@@ -520,13 +522,14 @@ int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata)
     p2 = strstr(temp1,"@");
     strcpy(temp2,p2);
     
-    printf("p1:%s\np2:%s\n",p1,p2);
+    //printf("p1:%s\np2:%s\n",p1,p2);
     
     while(*temp1!=':'){temp1++;}
     temp1++;
     sprintf(temp1,"%s\n%s",newdata,temp2);
 
-    printf("result:%s",record);
+    //printf("result:%s",record);
+    write(fp,record,sizeof(char)*RECORDLEN);
     
     return 0;
 }

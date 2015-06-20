@@ -372,6 +372,36 @@ int cgiMain()
         //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
         //return 0;
     }
+    else if(strcmp(command,"READF")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=READF;
+        strcpy(type,"file");
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        //return 0;
+    }
+    else if(strcmp(command,"READD")==0){
+        printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
+        option=READD;
+        strcpy(type,"dir");
+        if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
+             return 1;
+        }
+        if(cgiFormString("getid", getid, sizeof(getid))==cgiFormNotFound){
+             printf("<p>id [%s] doesn't exist!</p>",getid);
+             return 1;
+        }
+        //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        //return 0;
+    }
     else if(strcmp(command,"CDIR")==0){
         id_dir = open(id_record_dir,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
         read(id_dir,t,sizeof(char*));
@@ -685,17 +715,18 @@ int cgiMain()
     /*                  EDIT file                         */
     ////------------------------------------------------////
     if(option==EDITF||option==EDITD){
-        printf("-->id:%d,column:%s,type:%s,newdata:%s\n",atoi(getid),column,type,newdata);
+        //printf("-->id:%d,column:%s,type:%s,newdata:%s\n",atoi(getid),column,type,newdata);
         
         des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
         rdb_update(atoi(getid),des_file,type,option,column,newdata);
+        printf("%s",newdata);
         close(des_file);
         
         return 0;
     }
     if(option==READF||option==READD){
         content = rdb_read(atoi(getid),column,type);
-        printf("%s:%s\n",column,content);
+        printf("%s",content);
         return 0;
     }
 

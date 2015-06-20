@@ -6,7 +6,6 @@ var pathdir_name= new Array();//for move to
 pathdir_id[0]="0";
 pathdir_name[0]="Mydrive";
 var count_path=0;
-var file_array =new Array();
 $(document).ready(function(){
                 var column = "child";
                 var title = document.getElementById("dir_name");
@@ -120,7 +119,7 @@ function sendCommand(command,column,filename,id,newfilename,par,path,newpath,met
             'contentType': false,  // tell jQuery not to set contentType
             'type':method,
             'success':function(data){
-                callback("["+data+"]");
+                callback(data);
             },
             'error':function(xhr,ajaxOptions, thrownError){
                         console.log(xhr.status);
@@ -138,7 +137,6 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             var div = document.getElementById("move_block");
             var rid = div.getAttribute("value");
         }
-        file_array =new Array();
         console.log("command:"+command+' command='+command+'&search='+sfilename+'&page='+page+'&column='+column);
         var temp_file_array = new Array();
         $.ajax({
@@ -176,7 +174,7 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                             }
                             return;
                         }
-
+                        
                         var data = arr[i].split(",");
                         var id = data[0];
                         var filename = data[1];
@@ -191,7 +189,6 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                         var tag = data[2].match(/@tag:.*/);
                         tag = tag[0].replace("@tag:","");
                         
-                        file_array.push({id:id,name:filename,type:type,date:date,size:size,ds:ds,tag:tag});
                         temp_file_array.push({id:id,name:filename,type:type,date:date,size:size,ds:ds,tag:tag});
 
                 }
@@ -382,20 +379,21 @@ function intodir(e){
         $(".files").remove();
         current_dir = $(this).text();//if dir exist
         document.getElementsByName("path")[0].value = current_dir;
-        /*
-        createFileBlock("LIST","POST",$(this).text(),"normal",page,function(result){
-                page = result;
-        });
-        */
-        /*
-        createFileBlock("LIST","POST",dir_id,"normal",page,function(result){
-                page = result;
-        });
-        */
         
         createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
-                page = result;
+                
+                var file_descrip = document.getElementById("file_descrip");
+                var file_tag = document.getElementById("file_tag");
+                var des_block = document.getElementById("des_block");
+                var tag_block = document.getElementById("tag_block");
+
+                file_content.innerHTML="";
+                file_descrip.innerHTML="";
+                file_tag.innerHTML="";
+                file_descrip.removeChild(des_block);
+                file_tag.removeChild(tag_block);
         });
+        
 }
 function move_intodir(e){
 
@@ -458,6 +456,7 @@ function move_backtodir(e){
 }
 
 function jumpdir(e){
+
         var column = "child";
         $(this).nextAll().remove();
         var gopath = $(this).text().replace(" > ","");
@@ -474,6 +473,58 @@ function jumpdir(e){
         createFileBlock("LIST","POST",dir_id,"test",page,column,function(result){
                 page = result;
         });
+
+        var test = document.getElementById("edit_descrip");
+        if(test){
+                var data = test.getAttribute("onclick");
+                var id = test.getAttribute("value");
+                if(dir_id==id&&data.indexOf("files dir")>=0){
+                        console.log("----->equal");
+                        return;
+                }
+        }
+        sendCommand("READD","all","",dir_id,"","","","","POST","",function(result){
+                        //console.log("jump:"+result);
+                        var file_content = document.getElementById("file_content");
+                        var file_descrip = document.getElementById("file_descrip");
+                        var file_tag = document.getElementById("file_tag");
+                        var des_block = document.getElementById("des_block");
+                        var tag_block = document.getElementById("tag_block");
+                        var edit1 = document.getElementById("edit_descrip");
+                        var edit2 = document.getElementById("edit_tag");
+                        edit1.setAttribute("onclick","edit_des_block('"+dir_id+"','files dir')");
+                        edit2.setAttribute("onclick","edit_tag_block('"+dir_id+"','files dir')");
+
+                        var name = gopath;
+                        if(name=="/"){
+                        file_content.innerHTML="";
+                        file_descrip.innerHTML="";
+                        file_tag.innerHTML="";
+                        return ;
+                        }
+                        file_descrip.removeChild(des_block);
+                        file_tag.removeChild(tag_block);
+
+                        var type = result.match(/@type:.*/);
+                        type = type[0].replace("@type:","");
+                        var ctime = result.match(/@ctime:.*/);
+                        ctime = ctime[0].replace("@ctime:","");
+                        var ds = result.match(/@ds:.*/);
+                        ds = ds[0].replace("@ds:","");
+                        var tag = result.match(/@tag:.*/);
+                        tag = tag[0].replace("@tag:","");
+
+                        file_content.innerHTML = "檔案名稱:"+ name +"</br>";
+                        file_content.innerHTML += " 檔案類型:"+ type+"</br>";
+                        file_content.innerHTML += " 加入日期:"+ ctime+"</br>";
+
+                        des_block.innerHTML = ds;
+                        tag_block.innerHTML = tag;
+
+                        file_descrip.appendChild(des_block);
+                        file_tag.appendChild(tag_block);
+        });
+
         
         
 }
@@ -484,6 +535,16 @@ function control(e){
             $(".blocks").remove();
             switch(e.which){
                 case 1://left mouse
+                    
+                    var test = document.getElementById("edit_descrip");
+                    if(test){
+                        var data = test.getAttribute("onclick");
+                        var id = test.getAttribute("value");
+                        if(id==$(this).attr("value")&&data.indexOf($(this).attr("class"))>=0){
+                            return;
+                        }
+                    }
+
                     var id = $(this).attr("value");
                     var type = $(this).attr("class");
                     var file_image = document.getElementById("file_image");
@@ -515,60 +576,73 @@ function control(e){
                     //$(".edit_tag").click(edit_tag);
 
                     console.log("1.GET:"+$(this).text()+" id:"+id+" type:"+$(this).attr("class"));
-
-                    for(i=0;i<file_array.length;i++){
-                            //console.log("file["+i+"].id:"+file_array[i].id+" type:"+file_array[i].type);
-                            if(type=="files dir"&&file_array[i].type=="dir"&&file_array[i].id==id){
+                    var name = $(this).text();
+                            if(type=="files dir"){
                                 file_image.setAttribute("value",type);
 
-                                file_content.innerHTML = "檔案名稱:"+ file_array[i].name+"</br>";
-                                file_content.innerHTML += " 檔案類型:"+ file_array[i].type+"</br>";
-                                file_content.innerHTML += " 加入日期:"+ file_array[i].date+"</br>";
+                                file_descrip.innerHTML ="檔案描述:";
+                                file_tag.innerHTML ="檔案標簽:";
+                                
+                                file_descrip.appendChild(edit1);
+                                file_tag.appendChild(edit2);
 
+                                sendCommand("READD","all","",id,"","","","","POST","",function(result){
+                                    //console.log(result);
+                                    var type = result.match(/@type:.*/);
+                                    type = type[0].replace("@type:","");
+                                    var ctime = result.match(/@ctime:.*/);
+                                    ctime = ctime[0].replace("@ctime:","");
+                                    var ds = result.match(/@ds:.*/);
+                                    ds = ds[0].replace("@ds:","");
+                                    var tag = result.match(/@tag:.*/);
+                                    tag = tag[0].replace("@tag:","");
+
+                                    file_content.innerHTML = "檔案名稱:"+ name +"</br>";
+                                    file_content.innerHTML += " 檔案類型:"+ type+"</br>";
+                                    file_content.innerHTML += " 加入日期:"+ ctime+"</br>";
+
+                                    des_block.innerHTML = ds;
+                                    tag_block.innerHTML = tag;
+                                    
+                                    file_descrip.appendChild(des_block);
+                                    file_tag.appendChild(tag_block);
+                                });
+
+                                break;
+                            }
+                            else {
+                                file_image.setAttribute("value",type);
+                                
                                 file_descrip.innerHTML ="檔案描述:";
                                 file_tag.innerHTML ="檔案標簽:";
 
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
+                                
+                                sendCommand("READF","all","",id,"","","","","POST","",function(result){
+                                    //console.log(result);
+                                    var type = result.match(/@type:.*/);
+                                    type = type[0].replace("@type:","");
+                                    var ctime = result.match(/@ctime:.*/);
+                                    ctime = ctime[0].replace("@ctime:","");
+                                    var ds = result.match(/@ds:.*/);
+                                    ds = ds[0].replace("@ds:","");
+                                    var tag = result.match(/@tag:.*/);
+                                    tag = tag[0].replace("@tag:","");
 
-                                file_descrip.appendChild(des_block);
-                                file_tag.appendChild(tag_block);
-                                //edit1.addEventListener("click",edit_descrip,false);
-                                //edit2.addEventListener("click",edit_tag,false);
+                                    file_content.innerHTML = "檔案名稱:"+ name +"</br>";
+                                    file_content.innerHTML += " 檔案類型:"+ type+"</br>";
+                                    file_content.innerHTML += " 加入日期:"+ ctime+"</br>";
 
-                                //des_block.addEventListener("click",edit_des_block,false);
-                                //tag_block.addEventListener("click",edit_tag_block,false);
-
-                                file_descrip.innerHTML +="</br>"+file_array[i].ds;
-                                file_tag.innerHTML +="</br>"+file_array[i].tag;
-
+                                    
+                                    des_block.innerHTML = ds;
+                                    tag_block.innerHTML = tag;
+                                    
+                                    file_descrip.appendChild(des_block);
+                                    file_tag.appendChild(tag_block);
+                                });
                                 break;
                             }
-                            else if(type!="files dir"&&file_array[i].type!="dir"&&file_array[i].id==id){
-                                file_image.setAttribute("value",type);
-                                
-                                file_content.innerHTML = "檔案名稱:"+ file_array[i].name+"</br>";
-                                file_content.innerHTML += " 檔案類型:"+ file_array[i].type+"</br>";
-                                file_content.innerHTML += " 檔案大小:"+ file_array[i].size+" KB</br>";
-                                file_content.innerHTML += " 加入日期:"+ file_array[i].date+"</br>";
-                                
-                                file_descrip.innerHTML ="檔案描述:";
-                                file_tag.innerHTML ="檔案標簽:";
-
-                                file_descrip.appendChild(edit1);
-                                file_tag.appendChild(edit2);
-
-                                file_descrip.appendChild(des_block);
-                                file_tag.appendChild(tag_block);
-                                //edit1.addEventListener("click",edit_descrip,false);
-                                //edit2.addEventListener("click",edit_tag,false);
-                                
-                                file_descrip.innerHTML +="</br>"+file_array[i].ds;
-                                file_tag.innerHTML +="</br>"+file_array[i].tag;
-
-                                break;
-                            }
-                    }
                     break;
                 case 2://middle mouse
                     console.log("2");
@@ -719,10 +793,10 @@ function move(e){
                 var type = fileORdir.getAttribute("value");
                 $("#move_block").remove();
                 if(type=="MOVED"){
-                    $("[class$='dir'][value="+rid+"]").remove();
+                    $("[class~='dir'][value="+rid+"]").remove();
                 }
                 else{
-                    $("[value="+rid+"]").not('files dir').remove();
+                    $("[class~='files'][value="+rid+"][class!='files dir']").remove();
                 }
         });
 }
@@ -822,14 +896,14 @@ function rename(e){
         console.log("type:"+type+" new:"+newfilename+" old:"+filename+" id:"+id);
         if(type=="files dir"){
             console.log("rename dir");
-            sendCommand("RENAMED",filename,id,newfilename,"filename","","","POST","",function(result){
+            sendCommand("RENAMED","",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);
                 $(".dir[value='"+id+"']").text(newfilename);
             });
         }
         else{
             console.log("rename file");
-            sendCommand("RENAME",filename,id,newfilename,"filename","","","POST","",function(result){
+            sendCommand("RENAME","",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);               
                 $("div[value='"+id+"']").text(newfilename);
             });
