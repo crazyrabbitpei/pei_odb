@@ -13,6 +13,7 @@ extern char dfile_path[];
 extern int id,dir_id;
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
+int rdb_find(char *name,char *column,char *type);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
 char *getColumn(char *record,char *column,char *type);
@@ -431,10 +432,10 @@ char *getRecord(int rid,char *type){
 void print(int rid,char *type,char *data){
     char filename[FILENAMELENS];
     if(strcmp(type,"dir")==0){
-        printf("%d,%s,%s</br>",rid,dir_list[rid].filename,data);
+        printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,data);
     }
     else{
-        printf("%d,%s,%s</br>",rid,file_list[rid].filename,data);
+        printf("%d,%s,%s<nl>",rid,file_list[rid].filename,data);
     }
     return ;
 }
@@ -496,8 +497,18 @@ char *getColumn(char *record,char *column,char *type){
         return 0;
         
 }
-int rdb_find(){
-    
+int rdb_find(char *name,char *column,char *type){
+        if(strcmp(column,"filename")==0){
+                if(strcmp(type,"file")==0){
+
+                }
+                else if(strcmp(type,"dir")==0){
+
+                }
+        }
+        else{
+                
+        }
 }
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata){
     char *record;

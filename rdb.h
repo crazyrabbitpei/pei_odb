@@ -1,4 +1,4 @@
-#define FILENAMELENS 50
+#define FILENAMELENS 200
 #define BUCKETNUMBER 1000000
 #define DBININUM 2
 #define READPER  1073741824//1 GB
@@ -56,5 +56,6 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type);
 char *rdb_read(int rid,char *column,char *type);
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
+int rdb_find(char *name,char *column,char *type);
 unsigned long int Gethv(unsigned char *data,unsigned long int size);
 int GetOffset(int file);

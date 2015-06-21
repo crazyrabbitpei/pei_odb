@@ -56,7 +56,7 @@ function upload(files,name,cnt,len,type){
                     'contentType': false,  // tell jQuery not to set contentType
                     'type':'POST',
                     'success':function(data){
-                        //console.log(data);
+                        console.log(data);
                         var div = document.getElementById("upload_status");
                         div.innerHTML+=data;
                         var contenttype = data.match(/The alleged content type of the file was:.*/);

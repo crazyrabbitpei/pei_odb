@@ -10,6 +10,10 @@ $(document).ready(function(){
                 var column = "child";
                 var title = document.getElementById("dir_name");
                 var path = document.getElementById("dir_config");
+                //var search = document.getElementById("search_file");
+                //$("#search_file").click(search);
+                //search.addEventListener("click",search,false);
+
                 var dirname;
                 console.log("current id:"+dir_id);
                     
@@ -78,7 +82,7 @@ $("#add_dir").click(function(){
             return ;
         }
         
-        sendCommand("CDIR","",name,"","","filename",dir_id,"","POST","",function(result){
+        sendCommand("CDIR","","",name,"","","filename",dir_id,"","POST","",function(result){
             console.log("result:"+result);
             var input= document.getElementsByClassName("files dir");
             var len =document.getElementsByClassName("files dir").length;
@@ -100,8 +104,8 @@ $("#upload").click(function(){
     var file = document.getElementsByName('filename')[0];
     upload(file,file.files[0].name,0,1,"single");
 });
-function sendCommand(command,column,filename,id,newfilename,par,path,newpath,method,newdata,callback){
-
+function sendCommand(command,column,type,filename,id,newfilename,par,path,newpath,method,newdata,callback){
+    
     console.log("id:"+id+" column:"+column+" command:"+command);
     var formData = new FormData();
     formData.append(par,filename);
@@ -112,6 +116,7 @@ function sendCommand(command,column,filename,id,newfilename,par,path,newpath,met
     formData.append('newpath',newpath);
     formData.append('getid',id);
     formData.append('newdata',newdata);
+    formData.append('type',type);
         $.ajax({
             'url':'/pei/odb.cgi',
             'data':formData,
@@ -144,7 +149,9 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             'data': 'command='+command+'&search='+sfilename+'&page='+page+'&column='+column,
             'type': method,
             'success':function(data){
-                var arr = data.split("</br>");
+
+                console.log("=>"+data+"<=");
+                var arr = data.split("<nl>");
 
                 var filename="";
 
@@ -156,7 +163,7 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                 var types = [];
                 
                 for(i=0;i<arr.length-1;i++){
-                        //console.log(arr[i]);
+                        console.log("["+i+"]"+arr[i]);
                         if(arr[i]=="none,none,none"){
                             if(show=="move_list"){
                                     $(".move_list").remove();
@@ -186,6 +193,8 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                         size = size[0].replace("@size:","");
                         var ds = data[2].match(/@ds:.*/);
                         ds = ds[0].replace("@ds:","");
+                        //var tag="temp";
+                        
                         var tag = data[2].match(/@tag:.*/);
                         tag = tag[0].replace("@tag:","");
                         
@@ -431,15 +440,16 @@ function move_backtodir(e){
                             page = result;
             });
 
-            if(pathdir_id[count_path]!="0"){
+            //if(pathdir_id[count_path]!="0"){
                     path.innerHTML = "< " + pathdir_name[count_path];
-            }
-            else{
-                    path.innerHTML = pathdir_name[count_path];
-            }
+            //}
+            //else{
+            //        path.innerHTML = pathdir_name[count_path];
+            //}
             path.addEventListener("click",move_backtodir,false);
     }
     else if(count_path==0){
+            count_path=0;
             $(".move_list").remove();
             $(".self").remove();
             path.innerHTML = pathdir_name[count_path];
@@ -483,7 +493,7 @@ function jumpdir(e){
                         return;
                 }
         }
-        sendCommand("READD","all","",dir_id,"","","","","POST","",function(result){
+        sendCommand("READD","all","","",dir_id,"","","","","POST","",function(result){
                         //console.log("jump:"+result);
                         var file_content = document.getElementById("file_content");
                         var file_descrip = document.getElementById("file_descrip");
@@ -492,8 +502,10 @@ function jumpdir(e){
                         var tag_block = document.getElementById("tag_block");
                         var edit1 = document.getElementById("edit_descrip");
                         var edit2 = document.getElementById("edit_tag");
-                        edit1.setAttribute("onclick","edit_des_block('"+dir_id+"','files dir')");
-                        edit2.setAttribute("onclick","edit_tag_block('"+dir_id+"','files dir')");
+                        if(edit1&&edit2){
+                            edit1.setAttribute("onclick","edit_des_block('"+dir_id+"','files dir')");
+                            edit2.setAttribute("onclick","edit_tag_block('"+dir_id+"','files dir')");
+                        }
 
                         var name = gopath;
                         if(name=="/"){
@@ -586,7 +598,7 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
 
-                                sendCommand("READD","all","",id,"","","","","POST","",function(result){
+                                sendCommand("READD","all","","",id,"","","","","POST","",function(result){
                                     //console.log(result);
                                     var type = result.match(/@type:.*/);
                                     type = type[0].replace("@type:","");
@@ -619,7 +631,7 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
                                 
-                                sendCommand("READF","all","",id,"","","","","POST","",function(result){
+                                sendCommand("READF","all","","",id,"","","","","POST","",function(result){
                                     //console.log(result);
                                     var type = result.match(/@type:.*/);
                                     type = type[0].replace("@type:","");
@@ -657,7 +669,11 @@ function control(e){
                     blocks.setAttribute("value",filename);
 
                     this.appendChild(blocks);
-                    blocks.setAttribute("style","left:"+e.pageX+"px;top:"+e.pageY+"px");
+                    var left = e.pageX-265;
+                    var toph = e.pageY-140;
+                    blocks.setAttribute("style","left:"+left+"px;top:"+toph+"px");
+                    //blocks.setAttribute("style","left:"+e.pageX+"px;top:"+e.pageY+"px");
+                    //blocks.setAttribute("style","left:80px;top:30px");
                     var commands = ['Download','Rename','Delete','Move to'];
                     for(i=0;i<commands.length;i++){
                         if(type=="files dir"){type = "dir"; continue;}//dir will not have "download" command
@@ -737,7 +753,7 @@ function excute_control(e){
                         command="DELD";
                     }
                     $(this).closest('.files').remove();
-                    sendCommand(command,"",filename,id,"","filename",dir_id,"","POST","",function(result){
+                    sendCommand(command,"","",filename,id,"","filename",dir_id,"","POST","",function(result){
                                     console.log(result);               
                     });
                     $(".control_block").remove();
@@ -787,7 +803,7 @@ function move(e){
         var newdir = $("#move_block_check").val();
         var div = document.getElementById("move_block_check");
         var command = div.getAttribute("value");
-        sendCommand(command,"","",rid,"","",nowdir,newdir,"POST","",function(result){
+        sendCommand(command,"","","",rid,"","",nowdir,newdir,"POST","",function(result){
                 console.log(result);
                 var fileORdir = document.getElementById("move_block_check");
                 var type = fileORdir.getAttribute("value");
@@ -806,12 +822,12 @@ function edit_descrips(id,type){
     var column = "@ds";
     var newdata;
     if(type=="files dir"){
-        sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+        sendCommand("EDITD",column,"","",id,"","","","","POST",newdata,function(result){
             console.log(result);               
         });
     }
     else{
-        sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+        sendCommand("EDITF",column,"","",id,"","","","","POST",newdata,function(result){
             console.log(result);               
         });
     }
@@ -823,13 +839,13 @@ function edit_tags(id,type){
     var column = "@tag";
     var newdata;
     if(type=="files dir"){
-        sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+        sendCommand("EDITD",column,"","",id,"","","","","POST",newdata,function(result){
             console.log(result);               
                         
         });
     }
     else{
-        sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+        sendCommand("EDITF",column,"","",id,"","","","","POST",newdata,function(result){
             console.log(result);               
                         
         });
@@ -843,19 +859,21 @@ function edit_des_block(id,type){
     $("textarea#des_block").focusout(function(){
         var newdata = $("textarea#des_block").val();
         var column = "@ds";
+
+        newdata = newdata.replace(/\n/g,"</br>");
         console.log("text:"+newdata);
         $("textarea#des_block").replaceWith("<div id='des_block'>"+newdata+"</div>");
-        
         if(type=="files dir"){
-            sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+            sendCommand("EDITD",column,"","",id,"","","","","POST",newdata,function(result){
                 console.log("EDITD:"+result);               
             });
         }
         else{
-            sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+            sendCommand("EDITF",column,"","",id,"","","","","POST",newdata,function(result){
                 console.log("EDITF:"+result);               
             });
         }
+        
     });
 }
 function edit_tag_block(id,type){
@@ -867,16 +885,16 @@ function edit_tag_block(id,type){
         var newdata = $("textarea#tag_block").val();
         var column = "@tag";
         console.log("text:"+newdata);
+        newdata = newdata.replace(/\n/g,"</br>");
         $("textarea#tag_block").replaceWith("<div id='tag_block'>"+newdata+"</div>");
-        
         if(type=="files dir"){
-            sendCommand("EDITD",column,"",id,"","","","","POST",newdata,function(result){
+            sendCommand("EDITD",column,"","",id,"","","","","POST",newdata,function(result){
                 console.log(result);               
 
             });
         }
         else{
-            sendCommand("EDITF",column,"",id,"","","","","POST",newdata,function(result){
+            sendCommand("EDITF",column,"","",id,"","","","","POST",newdata,function(result){
                 console.log(result);               
             });
         }
@@ -896,14 +914,14 @@ function rename(e){
         console.log("type:"+type+" new:"+newfilename+" old:"+filename+" id:"+id);
         if(type=="files dir"){
             console.log("rename dir");
-            sendCommand("RENAMED","",filename,id,newfilename,"filename","","","POST","",function(result){
+            sendCommand("RENAMED","","",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);
                 $(".dir[value='"+id+"']").text(newfilename);
             });
         }
         else{
             console.log("rename file");
-            sendCommand("RENAME","",filename,id,newfilename,"filename","","","POST","",function(result){
+            sendCommand("RENAME","","",filename,id,newfilename,"filename","","","POST","",function(result){
                 console.log(result);               
                 $("div[value='"+id+"']").text(newfilename);
             });
@@ -914,4 +932,12 @@ function rename(e){
     }
     
 }
-
+function search(){
+        var pattern = $("input[type='text']").val();
+        var column = $("select[id='searchby']").val();
+        var type = $("input[name='type']:checked").val()
+        console.log("search:"+pattern+" catgeory:"+column+" type:"+type);
+        sendCommand("FIND",column,type,pattern,"","","search","","","POST","",function(result){
+            console.log(result);
+        });
+}

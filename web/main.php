@@ -67,12 +67,21 @@
 
             <nav id="file_config">
                 <section id="search">
-                    <input type="textarea">
-                    </input>
                     <select id=searchby>
-                        <option value="name">Name</option>
-                        <option value="type">Type</option>
+                        <option value="all"> ----All---- </option>
+                        <option value="filename">Name</option>
+                        <option value="@ds">Description</option>
+                        <option value="@tag">Tag</option>
+                        <option value="@type">Type</option>
                     </select>
+                    <input type="text">
+                    </input>
+                    <input id="search_file" type="button" value="search" onclick="search()"></input>
+                    
+                    <input type="radio" name="type" value="all">全部</input>
+                    <input type="radio" name="type" value="file">檔案</input>
+                    <input type="radio" name="type" value="dir">資料夾</input>
+
                 </section>
                 <input type="button" id="add_dir" value="+"/>
                 <!--<form id="upload" method="POST" action="/pei/odb.cgi" enctype="multipart/form-data">-->

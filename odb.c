@@ -164,6 +164,10 @@ int cgiMain()
              printf("<p>Path [%s] doesn't exist!</p>",path);
              return 1;
         }
+        if(cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
+            fprintf(cgiOut,"<p>PUT:Filename [%s] doesn't exist.</p>\n",filename);
+            return 1;
+        }
         dir_path = atoi(temp_path);
     }
     else if(strcmp(command,"GET")==0){
@@ -171,7 +175,7 @@ int cgiMain()
         //printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         
         if(cgiFormString("filename", filename, sizeof(filename))==cgiFormNotFound){
-             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             printf("<p>GET:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
         
@@ -187,7 +191,7 @@ int cgiMain()
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=LIST;
         if(cgiFormString("search", dirname, sizeof(dirname))==cgiFormNotFound){
-             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             printf("<p>List:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
         if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
@@ -205,18 +209,17 @@ int cgiMain()
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=FIND;
         if(cgiFormString("search", filename, sizeof(filename))==cgiFormNotFound){
-             printf("<p>Filename [%s] doesn't exist!</p>",filename);
+             printf("<p>Find:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
         if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
              printf("<p>Column [%s] doesn't exist!</p>",filename);
              return 1;
         }
-        if(cgiFormString("page", temp, sizeof(temp))==cgiFormNotFound){
-             printf("<p>Page [%s] doesn't exist!</p>",temp);
+        if(cgiFormString("type", type, sizeof(type))==cgiFormNotFound){
+             printf("<p>Column [%s] doesn't exist!</p>",filename);
              return 1;
         }
-        page = atoi(temp);
     }
     else if(strcmp(command,"DETAIL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -370,6 +373,7 @@ int cgiMain()
              return 1;
         }
         //printf("command:%d,column:%s,getid:%s,type:%s",option,column,getid,type);
+        //printf("newdata:%s\n",newdata);
         //return 0;
     }
     else if(strcmp(command,"READF")==0){
@@ -426,20 +430,13 @@ int cgiMain()
         printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         fprintf(cgiOut, "<p>Illegal option:[%s]</p>", command);
         if(cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
-            fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
+            fprintf(cgiOut,"<p>Else:Filename [%s] doesn't exist.</p>\n",filename);
             return 1;
         }
         fprintf(cgiOut,"<p>filename:%s</p>",filename);
         return 1;
     }
 
-    if(option==PUT){
-        if(cgiFormFileName("filename", filename, sizeof(filename)) != cgiFormSuccess){
-            fprintf(cgiOut,"<p>Filename [%s] doesn't exist.</p>\n",filename);
-            return 1;
-        }
-        //strcpy(relfilename,filename);
-    }
     strcpy(relfilename,filename);
 /*
     int choice;
@@ -799,6 +796,8 @@ int cgiMain()
     }
 
     else if(option==FIND){
+        printf("search:%s,column:%s,type:%s\n",filename,column,type);
+        rdb_find(filename,column,type);
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
