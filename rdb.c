@@ -13,11 +13,11 @@ extern char dfile_path[];
 extern int id,dir_id;
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
-int rdb_find(char *name,char *column,char *type);
+int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
 char *getColumn(char *record,char *column,char *type);
-char *getRecord(int id,char *type);
+char *getRecord(int rid,char *type);
 void print(int rid,char *type,char *data);
 
 int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp,int rid){
@@ -497,18 +497,52 @@ char *getColumn(char *record,char *column,char *type){
         return 0;
         
 }
-int rdb_find(char *name,char *column,char *type){
-        if(strcmp(column,"filename")==0){
-                if(strcmp(type,"file")==0){
-
-                }
-                else if(strcmp(type,"dir")==0){
-
-                }
+int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn){
+        int rid,i=1;
+        int count=0;
+        int columns=10;
+        char *data;
+        char *delim=";";
+        char **column;
+        //parse pattern
+        column = (char **)malloc(sizeof(char*)*columns);
+        column[count] = strtok(pattern,delim);
+        printf("column[%d]:%s\n",count,column[count]);
+        count++;
+        
+        while((column[count] = strtok(NULL,delim))!=NULL){
+            if(column[count][0]=='@'){
+                printf("column[%d]:%s\n",count,column[count]);
+                count++;
+            }
+        }
+        //get records's column
+        if(strcmp(type,"file")==0){
+            while(file_list[i].key!=-1){
+                data = getRecord(i,type);
+                printf("%s\n",data);
+                i++;
+            }
+            printf("total num:%d\n",i);
+        }
+        else if(strcmp(type,"dir")==0){
+            while(dir_list[i].key!=-1){
+                data = getRecord(i,type);
+                printf("%s\n",data);
+                i++;
+            }
+            printf("total num:%d\n",i);
         }
         else{
-                
+            while(file_list[i].key!=-1){
+                data = getRecord(i,"all");
+                printf("%s\n",data);
+                i++;
+            }
+            printf("total num:%d\n",i);
         }
+    free(column);
+    return 0;
 }
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata){
     char *record;

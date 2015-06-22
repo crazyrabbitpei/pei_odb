@@ -56,6 +56,7 @@ int rdb_create(int fp,char *name,int offset, int size,int parent,char *type);
 char *rdb_read(int rid,char *column,char *type);
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
-int rdb_find(char *name,char *column,char *type);
+ //rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn);
 unsigned long int Gethv(unsigned char *data,unsigned long int size);
 int GetOffset(int file);

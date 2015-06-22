@@ -113,11 +113,11 @@ int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
     char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50],newdata[1000];
+    char type[10],sensitive[5],offset[10],sortby[20],range[20],outputnum[10],outputcolumn[100];
     int option=-1,cnt,index,page=1;
     char temp[3]="";
     char t[100]="0";
     char path[100]="./db/file_";
-    char type[10];
     char temp_path[1000];
     char temp_newpath[1000];
     int dir_path,dir_newpath,temp_id;
@@ -212,13 +212,33 @@ int cgiMain()
              printf("<p>Find:Filename [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        /*
         if(cgiFormString("column", column, sizeof(column))==cgiFormNotFound){
              printf("<p>Column [%s] doesn't exist!</p>",filename);
              return 1;
         }
+        */
+
         if(cgiFormString("type", type, sizeof(type))==cgiFormNotFound){
-             printf("<p>Column [%s] doesn't exist!</p>",filename);
-             return 1;
+            strcpy(type,"@all");
+        }
+        if(cgiFormString("sensitive", sensitive, sizeof(sensitive))==cgiFormNotFound){
+            strcpy(sensitive,"no");
+        }
+        if(cgiFormString("offset", offset, sizeof(offset))==cgiFormNotFound){
+            strcpy(offset,"0");
+        }
+        if(cgiFormString("sortby", sortby, sizeof(sortby))==cgiFormNotFound){
+            strcpy(sortby,"offset");
+        }
+        if(cgiFormString("range", range, sizeof(range))==cgiFormNotFound){
+            strcpy(range,"0-50");
+        }
+        if(cgiFormString("outputnum", outputnum, sizeof(outputnum))==cgiFormNotFound){
+            strcpy(outputnum,"50");
+        }
+        if(cgiFormString("outputcolumn", outputcolumn, sizeof(outputcolumn))==cgiFormNotFound){
+            strcpy(outputcolumn,"all");
         }
     }
     else if(strcmp(command,"DETAIL")==0){
@@ -693,7 +713,7 @@ int cgiMain()
             //odb
             }
             else if(option==DEL){//Delete dir doesn't need to mark odb file
-                //file_list[index].key = -1;
+                file_list[index].key = -1;
                 des_file = open(dfile_path,O_RDWR|O_CREAT,S_IRWXU|S_IRGRP);
                 getDir(index,dir_path,-1,des_file,"file",option,"");
                 close(des_file);
@@ -796,8 +816,8 @@ int cgiMain()
     }
 
     else if(option==FIND){
-        printf("search:%s,column:%s,type:%s\n",filename,column,type);
-        rdb_find(filename,column,type);
+        printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
@@ -1340,7 +1360,6 @@ int ReadNameFile(char *filename, int option, int command, char *relfilename, int
     char find_path[FILENAMELENS]="";
 
 
-    int dir_id = atoi(dirname);
     file_index = open(filename,O_RDONLY);
 
     if(file_index>=0){

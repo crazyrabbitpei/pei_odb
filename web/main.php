@@ -69,7 +69,7 @@
                 <section id="search">
                     <select id=searchby>
                         <option value="all"> ----All---- </option>
-                        <option value="filename">Name</option>
+                        <option value="@filename">Name</option>
                         <option value="@ds">Description</option>
                         <option value="@tag">Tag</option>
                         <option value="@type">Type</option>
@@ -93,9 +93,9 @@
                     </div>
                 <!--</form>-->
                 <select id=sortby>
-                    <option value="upload">Upload Time</option>
-                    <option value="name">Name</option>
-                    <option value="type">Type</option>
+                    <option value="@ctime">Upload Time</option>
+                    <option value="@filename">Name</option>
+                    <option value="@type">Type</option>
                 </select>
             </nav>
 

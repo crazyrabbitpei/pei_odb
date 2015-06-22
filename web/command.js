@@ -935,9 +935,38 @@ function rename(e){
 function search(){
         var pattern = $("input[type='text']").val();
         var column = $("select[id='searchby']").val();
+        var sortby = $("select[id='sortby']").val();
         var type = $("input[name='type']:checked").val()
-        console.log("search:"+pattern+" catgeory:"+column+" type:"+type);
-        sendCommand("FIND",column,type,pattern,"","","search","","","POST","",function(result){
+        console.log("search:"+pattern+" catgeory:"+column+" type:"+type+" sort:"+sortby);
+        var query = column+":("+pattern+")";
+        console.log("query:"+query);
+        //--in query--//
+        /*query type*/
+        //search=column1:(pattern1);column2:(pattern2);
+        //search=all:(pattern);
+       
+        /*boolen*/
+            //column1:(pattern1,pattern1-1,!pattern1-2);column2:(!pattern2)
+
+        //---after---//
+        //search=column1:(pattern1);column2:(pattern2);&type=type&sortby=sorby&offset=offset&...
+        /*filter*/
+            //type:file/dir/all;
+            //offset:search_from_offset
+            //sensitive:yes/no
+        
+        /*output*/
+            //range:num1-num2;
+            //outputnum:num;
+            //outputcolumn:c1,c2,c3;
+            //outputcolumn:!c3;
+            
+            //sortby:column_name;   default->offset increase
+            //                               other decrease
+        
+        
+        sendCommand("FIND",column,type,query,"","","search","","","POST","",function(result){
             console.log(result);
         });
+        
 }
