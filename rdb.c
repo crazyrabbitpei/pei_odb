@@ -19,6 +19,12 @@ int deleteChild(int cid,char *record,char *type,int fp);
 char *getColumn(char *record,char *column,char *type);
 char *getRecord(int rid,char *type);
 void print(int rid,char *type,char *data);
+typedef struct{
+        char column[10];
+        char pattern[500];
+        char **filter;
+        int count;
+}query;
 
 int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp,int rid){
     char *record;
@@ -498,48 +504,169 @@ char *getColumn(char *record,char *column,char *type){
         
 }
 int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn){
-        int rid,i=1;
-        int count=0;
+        int rid,i=1,j=0,k=0,l;
+        int count=0,total=0,equal=0;
         int columns=10;
-        char *data;
+        char *data,*content;
         char *delim=";";
+        char *delim2=":";
+        char *delim3="(),";
         char **column;
+        query array[100];
         //parse pattern
         column = (char **)malloc(sizeof(char*)*columns);
+
         column[count] = strtok(pattern,delim);
-        printf("column[%d]:%s\n",count,column[count]);
+        //strcpy(array[count].column,strtok(column[count],delim2));
+        //strcpy(array[count].pattern,strtok(NULL,delim2));
+        //printf("column[%d]:%s\n",count,column[count]);
+        //printf("[%d]%s:%s\n",count,array[count].column,array[count].pattern);
         count++;
         
         while((column[count] = strtok(NULL,delim))!=NULL){
             if(column[count][0]=='@'){
-                printf("column[%d]:%s\n",count,column[count]);
+                //strcpy(array[count].column,strtok(column[count],delim2));
+                //strcpy(array[count].pattern,strtok(NULL,delim2));
+                //printf("column[%d]:%s\n",count,column[count]);
+                //printf("[%d]%s:%s\n",count,array[count].column,array[count].pattern);
                 count++;
+                if(count>100){
+                    printf("Query too long.");
+                    return 0;
+                 }
             }
+        }
+
+        i=0;
+        while(i<count){//get column name and its pattern
+                strcpy(array[i].column,strtok(column[i],delim2));
+                strcpy(array[i].pattern,strtok(NULL,delim2));
+                printf("[%d]%s:%s\n",i,array[i].column,array[i].pattern);
+                i++;
+        }
+        i=0;
+        while(i<count){//cut column's pattern to small pattern
+                array[i].filter = (char **)malloc(sizeof(char*)*100);
+                k=0;
+                /*parse column's pattern*/
+                array[i].filter[k] = strtok(array[i].pattern,delim3);
+                printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
+                k++;
+                while((array[i].filter[k] = strtok(NULL,delim3))!=NULL){
+                        printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
+                        k++;
+                }
+                array[i].count = k;
+            i++;
         }
         //get records's column
         if(strcmp(type,"file")==0){
+            i=0;
+            total=0;
             while(file_list[i].key!=-1){
-                data = getRecord(i,type);
-                printf("%s\n",data);
-                i++;
+
+                    for(j=0;j<count;j++){//column name check
+                            /*compare @filename*/
+
+                            equal=0;
+                            if(strcmp(array[j].column,"@filename")==0){
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
+                                                                    //printf("Or[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                            }
+                                                            break;
+                                                    case '!'://not
+                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
+                                                                    //printf("Not[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                                    equal=-1;
+                                                            }
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
+                                                                    //printf("And[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                            }
+                                                            else{
+                                                                    //printf("And[%d]filename:%s!=%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                                    equal=-1;
+                                                                    //printf("equal=%d\n",equal);
+                                                            }
+                                            
+                                                            break;
+                                            }
+
+                                    }
+                                    
+                                    if(equal==0){
+                                            //printf("equal=%d\n",equal);
+                                            data = getRecord(i,type);
+                                            //print(i,type,data);
+                                            total++;
+                                    }
+                                    
+                            }
+                            else{
+                                data = getRecord(i,type);
+                                content = getColumn(data,array[j].column,type);
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            if(strstr(content,array[j].filter[l])>0){
+                                                                    //printf("Or[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                            }
+                                                            break;
+                                                    case '!'://not
+                                                            if(strstr(content,array[j].filter[l])>0){
+                                                                    //printf("Not[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                                    equal=-1;
+                                                            }
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(content,array[j].filter[l])>0){
+                                                                    //printf("And[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                            }
+                                                            else{
+                                                                    //printf("And[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                                    equal=-1;
+                                                                    //printf("equal=%d\n",equal);
+                                                            }
+                                            
+                                                            break;
+                                            }
+
+                                    }
+                                    /*
+                                    if(equal==0){
+                                            //printf("equal=%d\n",equal);
+                                            print(i,type,data);
+                                            total++;
+                                    }
+                                    */
+                            }
+                    }
+                    if(equal==0){
+                            //printf("equal=%d\n",equal);
+                            print(i,type,data);
+                            total++;
+                    }
+                    i++;
             }
-            printf("total num:%d\n",i);
+            //printf("total num:%d\n",total);
+            if(total==0){
+                    printf("none,none,none<nl>");
+            }
+
         }
         else if(strcmp(type,"dir")==0){
             while(dir_list[i].key!=-1){
-                data = getRecord(i,type);
-                printf("%s\n",data);
                 i++;
             }
-            printf("total num:%d\n",i);
         }
         else{
             while(file_list[i].key!=-1){
-                data = getRecord(i,"all");
-                printf("%s\n",data);
                 i++;
             }
-            printf("total num:%d\n",i);
         }
     free(column);
     return 0;

@@ -42,8 +42,8 @@ typedef struct{
 typedef struct{
         /* file id  map to hv(index file) */
         unsigned long int key;//odb:object key
-            char filename[FILENAMELENS];
-                int offset;//rdb:gais record offset
+        char filename[FILENAMELENS];
+        int offset;//rdb:gais record offset
 
 } map;
 extern dir_map dir_list[BUCKETNUMBER];

@@ -124,6 +124,56 @@ function sendCommand(command,column,type,filename,id,newfilename,par,path,newpat
             'contentType': false,  // tell jQuery not to set contentType
             'type':method,
             'success':function(data){
+                console.log("=>"+data+"<=");
+            if(command=="FIND"){
+                $(".nothing").remove();
+                $(".files").remove();
+
+                var temp_file_array = new Array();
+                var arr = data.split("<nl>");
+
+                var filename="";
+
+                var detail=[];
+                var key=[];
+                var offset=[];
+                var dates = [];
+                var filenames = [];
+                var types = [];
+                
+                for(i=0;i<arr.length-1;i++){
+                        console.log("["+i+"]"+arr[i]);
+                        if(arr[i]=="none,none,none"){
+                            callback("No files.");
+                            return;
+                        }
+                        
+                        var data = arr[i].split(",");
+                        var id = data[0];
+                        var filename = data[1];
+                        var type = data[2].match(/@type:.*/);
+                        type = type[0].replace("@type:","");
+                        var date = data[2].match(/@ctime:.*/);
+                        date = date[0].replace("@ctime:","");
+                        var size = data[2].match(/@size:.*/);
+                        size = size[0].replace("@size:","");
+                        var ds = data[2].match(/@ds:.*/);
+                        ds = ds[0].replace("@ds:","");
+                        
+                        var tag = data[2].match(/@tag:.*/);
+                        tag = tag[0].replace("@tag:","");
+                        
+                        temp_file_array.push({id:id,name:filename,type:type,date:date,size:size,ds:ds,tag:tag});
+
+                }
+                //sort file by__(default is date)
+                temp_file_array.sort(sortFunction);
+                temp_file_array = JSON.stringify(temp_file_array);
+                temp_file_array = JSON.parse(temp_file_array);
+                for(i=0;i<temp_file_array.length;i++){
+                        newfile(temp_file_array[i].id,temp_file_array[i].name,temp_file_array[i].type);
+                }
+            }
                 callback(data);
             },
             'error':function(xhr,ajaxOptions, thrownError){
@@ -142,7 +192,7 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             var div = document.getElementById("move_block");
             var rid = div.getAttribute("value");
         }
-        console.log("command:"+command+' command='+command+'&search='+sfilename+'&page='+page+'&column='+column);
+        console.log(command+' command='+command+'&search='+sfilename+'&page='+page+'&column='+column);
         var temp_file_array = new Array();
         $.ajax({
             'url':'/pei/odb.cgi',
@@ -938,7 +988,7 @@ function search(){
         var sortby = $("select[id='sortby']").val();
         var type = $("input[name='type']:checked").val()
         console.log("search:"+pattern+" catgeory:"+column+" type:"+type+" sort:"+sortby);
-        var query = column+":("+pattern+")";
+        var query = column+":("+pattern+");";
         console.log("query:"+query);
         //--in query--//
         /*query type*/

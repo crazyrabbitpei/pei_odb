@@ -816,7 +816,7 @@ int cgiMain()
     }
 
     else if(option==FIND){
-        printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        //printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
         rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
