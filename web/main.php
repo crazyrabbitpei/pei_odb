@@ -68,7 +68,7 @@
             <nav id="file_config">
                 <section id="search">
                     <select id=searchby>
-                        <option value="all"> ----All---- </option>
+                        <option value="@all"> ----All---- </option>
                         <option value="@filename">Name</option>
                         <option value="@ds">Description</option>
                         <option value="@tag">Tag</option>

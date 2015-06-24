@@ -511,7 +511,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         char *delim=";";
         char *delim2=":";
         char *delim3="(),";
-        char **column;
+        char *delim4="|!";
+        char **column,**temp;
         query array[100];
         //parse pattern
         column = (char **)malloc(sizeof(char*)*columns);
@@ -564,33 +565,32 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
             i=0;
             total=0;
             while(file_list[i].key!=-1){
-
+                    equal=0;
                     for(j=0;j<count;j++){//column name check
                             /*compare @filename*/
-
-                            equal=0;
                             if(strcmp(array[j].column,"@filename")==0){
-                                    for(l=0;l<array[j].count;l++){
+                                    for(l=0;l<array[j].count;l++){//compare multi patterns of column
                                             switch(array[j].filter[l][0]){
                                                     case '|'://or
-                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
-                                                                    //printf("Or[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(file_list[i].filename,temp[0])>0){
                                                             }
+                                                            free(temp);
                                                             break;
                                                     case '!'://not
-                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
-                                                                    //printf("Not[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(file_list[i].filename,temp[0])>0){
                                                                     equal=-1;
                                                             }
+                                                            free(temp);
                                                             break;
                                                     default ://and
                                                             if(strstr(file_list[i].filename,array[j].filter[l])>0){
-                                                                    //printf("And[%d]filename:%s=?%s\n",l,file_list[i].filename,array[j].filter[l]);
                                                             }
                                                             else{
-                                                                    //printf("And[%d]filename:%s!=%s\n",l,file_list[i].filename,array[j].filter[l]);
                                                                     equal=-1;
-                                                                    //printf("equal=%d\n",equal);
                                                             }
                                             
                                                             break;
@@ -599,74 +599,214 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                     }
                                     
                                     if(equal==0){
-                                            //printf("equal=%d\n",equal);
                                             data = getRecord(i,type);
                                             //print(i,type,data);
-                                            total++;
                                     }
-                                    
                             }
-                            else{
+                            else{//except @filename
                                 data = getRecord(i,type);
-                                content = getColumn(data,array[j].column,type);
+                                if(strcmp(array[j].column,"@all")==0){//search all column
                                     for(l=0;l<array[j].count;l++){
                                             switch(array[j].filter[l][0]){
                                                     case '|'://or
-                                                            if(strstr(content,array[j].filter[l])>0){
-                                                                    //printf("Or[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(data,temp[0])>0){
                                                             }
+                                                            free(temp);
                                                             break;
                                                     case '!'://not
-                                                            if(strstr(content,array[j].filter[l])>0){
-                                                                    //printf("Not[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(data,temp[0])>0){
                                                                     equal=-1;
                                                             }
+                                                            free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(content,array[j].filter[l])>0){
-                                                                    //printf("And[%d]:%s=?%s\n",l,content,array[j].filter[l]);
+                                                            if(strstr(data,array[j].filter[l])>0){
                                                             }
                                                             else{
-                                                                    //printf("And[%d]:%s=?%s\n",l,content,array[j].filter[l]);
                                                                     equal=-1;
-                                                                    //printf("equal=%d\n",equal);
                                                             }
                                             
                                                             break;
                                             }
 
                                     }
-                                    /*
-                                    if(equal==0){
-                                            //printf("equal=%d\n",equal);
-                                            print(i,type,data);
-                                            total++;
+                                    
+                                }
+                                else{//except @all column
+                                    content = getColumn(data,array[j].column,type);
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(content,temp[0])>0){
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    case '!'://not
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(content,temp[0])>0){
+                                                                    equal=-1;
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(content,array[j].filter[l])>0){
+                                                            }
+                                                            else{
+                                                                    equal=-1;
+                                                            }
+                                            
+                                                            break;
+                                            }
+
                                     }
-                                    */
+                                }
                             }
                     }
                     if(equal==0){
-                            //printf("equal=%d\n",equal);
                             print(i,type,data);
                             total++;
                     }
                     i++;
             }
-            //printf("total num:%d\n",total);
+
             if(total==0){
                     printf("none,none,none<nl>");
+            }
+            else{
+                   printf("%d<nl>",total);   
             }
 
         }
         else if(strcmp(type,"dir")==0){
+            i=1;
+            total=0;
             while(dir_list[i].key!=-1){
-                i++;
+                    equal=0;
+                    for(j=0;j<count;j++){//column name check
+                            /*compare @filename*/
+                            if(strcmp(array[j].column,"@filename")==0){
+                                    for(l=0;l<array[j].count;l++){//compare multi patterns of column
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(dir_list[i].filename,temp[0])>0){
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    case '!'://not
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(dir_list[i].filename,temp[0])>0){
+                                                                    equal=-1;
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(dir_list[i].filename,array[j].filter[l])>0){
+                                                            }
+                                                            else{
+                                                                    equal=-1;
+                                                            }
+                                            
+                                                            break;
+                                            }
+
+                                    }
+                                    
+                                    if(equal==0){
+                                            data = getRecord(i,type);
+                                            //print(i,type,data);
+                                    }
+                            }
+                            else{//except @filename
+                                data = getRecord(i,type);
+                                if(strcmp(array[j].column,"@all")==0){//search all column
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(data,temp[0])>0){
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    case '!'://not
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(data,temp[0])>0){
+                                                                    equal=-1;
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(data,array[j].filter[l])>0){
+                                                            }
+                                                            else{
+                                                                    equal=-1;
+                                                            }
+                                            
+                                                            break;
+                                            }
+
+                                    }
+                                    
+                                }
+                                else{//except @all column
+                                    content = getColumn(data,array[j].column,type);
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                    case '|'://or
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(content,temp[0])>0){
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    case '!'://not
+                                                            temp = (char **)malloc(sizeof(char*)*1);
+                                                            temp[0] = strtok(array[j].filter[l],delim4);
+                                                            if(strstr(content,temp[0])>0){
+                                                                    equal=-1;
+                                                            }
+                                                            free(temp);
+                                                            break;
+                                                    default ://and
+                                                            if(strstr(content,array[j].filter[l])>0){
+                                                            }
+                                                            else{
+                                                                    equal=-1;
+                                                            }
+                                            
+                                                            break;
+                                            }
+
+                                    }
+                                }
+                            }
+                    }
+                    if(equal==0){
+                            print(i,type,data);
+                            total++;
+                    }
+                    i++;
+            }
+
+            if(total==0){
+                    printf("none,none,none<nl>");
+            }
+            else{
+                   printf("%d<nl>",total);   
             }
         }
-        else{
-            while(file_list[i].key!=-1){
-                i++;
-            }
+        else{//search file and dir
         }
     free(column);
     return 0;
