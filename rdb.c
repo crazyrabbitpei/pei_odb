@@ -14,17 +14,19 @@ extern int id,dir_id;
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
 int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn);
+//int find_file(int count,Query *a1,char *sensitive);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
 char *getColumn(char *record,char *column,char *type);
 char *getRecord(int rid,char *type);
 void print(int rid,char *type,char *data);
+int SensitiveCompare(char *s1, char *s2);
 typedef struct{
         char column[10];
         char pattern[500];
         char **filter;
         int count;
-}query;
+}Query;
 
 int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int fp,int rid){
     char *record;
@@ -505,6 +507,8 @@ char *getColumn(char *record,char *column,char *type){
 }
 int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn){
         int rid,i=1,j=0,k=0,l;
+        int from=atoi(offset),to=atoi(outputnum);
+        printf("from:%d,to:%d\n",from ,to);
         int count=0,total=0,equal=0;
         int columns=10;
         char *data,*content;
@@ -513,11 +517,15 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         char *delim3="(),";
         char *delim4="|!";
         char **column,**temp;
-        query array[100];
+        char *pattern1;
+        pattern1 = malloc(sizeof(char)*(strlen(pattern)));
+        strcpy(pattern1,pattern);
+        printf("copy:%s\n",pattern1);
+        Query array[100];
         //parse pattern
         column = (char **)malloc(sizeof(char*)*columns);
 
-        column[count] = strtok(pattern,delim);
+        column[count] = strtok(pattern1,delim);
         //strcpy(array[count].column,strtok(column[count],delim2));
         //strcpy(array[count].pattern,strtok(NULL,delim2));
         //printf("column[%d]:%s\n",count,column[count]);
@@ -562,10 +570,11 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         }
         //get records's column
         if(strcmp(type,"file")==0){
-            i=0;
+            i=from;
             total=0;
             while(file_list[i].key!=-1){
                     equal=0;
+                    //if(total==to){break;}
                     for(j=0;j<count;j++){//column name check
                             /*compare @filename*/
                             if(strcmp(array[j].column,"@filename")==0){
@@ -574,23 +583,45 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(file_list[i].filename,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],file_list[i].filename)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(file_list[i].filename,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(file_list[i].filename,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],file_list[i].filename)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(file_list[i].filename,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(file_list[i].filename,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    printf("compare:%s,%s\n",file_list[i].filename,array[j].filter[l]);
+                                                                    if(SensitiveCompare(file_list[i].filename,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
-                                                                    equal=-1;
+                                                                    if(strstr(file_list[i].filename,array[j].filter[l])>0){
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                             
                                                             break;
@@ -611,23 +642,44 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(data,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],data)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(data,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(data,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],data)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(data,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(data,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(data,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
+                                                                if(strstr(data,array[j].filter[l])>0){
+                                                                }
+                                                                else{
                                                                     equal=-1;
+                                                                }
                                                             }
                                             
                                                             break;
@@ -643,23 +695,44 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(content,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],content)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(content,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(content,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],content)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(content,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(content,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(content,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
-                                                                    equal=-1;
+                                                                    if(strstr(content,array[j].filter[l])>0){
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                             
                                                             break;
@@ -685,9 +758,10 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
 
         }
         else if(strcmp(type,"dir")==0){
-            i=1;
+            i=from;
             total=0;
             while(dir_list[i].key!=-1){
+                    //if(total==to){break;}
                     equal=0;
                     for(j=0;j<count;j++){//column name check
                             /*compare @filename*/
@@ -697,23 +771,44 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(dir_list[i].filename,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],dir_list[i].filename)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(dir_list[i].filename,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(dir_list[i].filename,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],dir_list[i].filename)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(dir_list[i].filename,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(dir_list[i].filename,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(dir_list[i].filename,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
-                                                                    equal=-1;
+                                                                    if(strstr(dir_list[i].filename,array[j].filter[l])>0){
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                             
                                                             break;
@@ -734,23 +829,44 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(data,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],data)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(data,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(data,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],data)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(data,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(data,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(data,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
+                                                                if(strstr(data,array[j].filter[l])>0){
+                                                                }
+                                                                else{
                                                                     equal=-1;
+                                                                }
                                                             }
                                             
                                                             break;
@@ -766,23 +882,44 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                     case '|'://or
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(content,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],content)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                            }
+                                                            else if(strstr(content,temp[0])>0){
                                                             }
                                                             free(temp);
                                                             break;
                                                     case '!'://not
                                                             temp = (char **)malloc(sizeof(char*)*1);
                                                             temp[0] = strtok(array[j].filter[l],delim4);
-                                                            if(strstr(content,temp[0])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(temp[0],content)==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                        return -1;
+                                                                    }
+                                                            }
+                                                            else if(strstr(content,temp[0])>0){
                                                                     equal=-1;
                                                             }
                                                             free(temp);
                                                             break;
                                                     default ://and
-                                                            if(strstr(content,array[j].filter[l])>0){
+                                                            if(strcmp(sensitive,"yes")==0){
+                                                                    if(SensitiveCompare(content,array[j].filter[l])==0){
+                                                                        //printf("sensitiveCompare:0\n");
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                                             else{
-                                                                    equal=-1;
+                                                                    if(strstr(content,array[j].filter[l])>0){
+                                                                    }
+                                                                    else{
+                                                                            equal=-1;
+                                                                    }
                                                             }
                                             
                                                             break;
@@ -805,12 +942,24 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
             else{
                    printf("%d<nl>",total);   
             }
+
         }
         else{//search file and dir
         }
     free(column);
+    free(pattern1);
     return 0;
 }
+/*
+int find_file(int count,Query *a1,char *sensitive){
+        
+}
+*/
+/*
+int find_dir(){
+
+}
+*/
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata){
     char *record;
     char *p1,*p2,*temp1,temp2[1000];
@@ -839,7 +988,6 @@ int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata)
     while(*temp1!=':'){temp1++;}
     temp1++;
     sprintf(temp1,"%s\n%s",newdata,temp2);
-
     //printf("result:%s",record);
     write(fp,record,sizeof(char)*RECORDLEN);
     
@@ -847,4 +995,32 @@ int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata)
 }
 int rdb_delete(){
 }
-
+int SensitiveCompare(char *s1, char *s2){
+        int i=0;
+        int l1,l2;
+        l1 = sizeof(s1)+1;
+        l2 = sizeof(s2)+1;
+        char *p1,*p2;
+        p1 = malloc(sizeof(char)*l1);
+        p2 = malloc(sizeof(char)*l2);
+        for(i=0;i<l1+1;i++){
+            p1[i] = tolower(s1[i]);
+        }
+        p1[i]='\0';
+        for(i=0;i<l2+1;i++){
+            p2[i] = tolower(s2[i]);
+        }
+        p2[i]='\0';
+        printf("p1:%s,p2:%s\n",p1,p2);
+        if(i=strstr(p1,p2)>0){
+            //printf("i:%d\n",i);
+            free(p1);
+            free(p2);
+            return 0;
+        }
+        else{
+            free(p1);
+            free(p2);
+            return -1;
+        }
+}

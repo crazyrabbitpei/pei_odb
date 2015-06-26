@@ -220,7 +220,7 @@ int cgiMain()
         */
 
         if(cgiFormString("type", type, sizeof(type))==cgiFormNotFound){
-            strcpy(type,"@all");
+            strcpy(type,"all");
         }
         if(cgiFormString("sensitive", sensitive, sizeof(sensitive))==cgiFormNotFound){
             strcpy(sensitive,"no");
@@ -232,7 +232,7 @@ int cgiMain()
             strcpy(sortby,"offset");
         }
         if(cgiFormString("range", range, sizeof(range))==cgiFormNotFound){
-            strcpy(range,"0-50");
+            strcpy(range,"");
         }
         if(cgiFormString("outputnum", outputnum, sizeof(outputnum))==cgiFormNotFound){
             strcpy(outputnum,"50");
@@ -816,8 +816,15 @@ int cgiMain()
     }
 
     else if(option==FIND){
-        //printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
-        rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        if(strcmp(type,"all")==0){
+            rdb_find(filename,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn);
+            rdb_find(filename,"file",sensitive,offset,sortby,range,outputnum,outputcolumn);
+
+        }
+        else{
+            rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        }
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
             //printf("File [%s] doesn't exist.</br>",relfilename);
