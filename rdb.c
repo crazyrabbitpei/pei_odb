@@ -13,13 +13,13 @@ extern char dfile_path[];
 extern int id,dir_id;
 void getDir(int cid,int pid,int newpid,int fp,char *type,int command,char *column);
 int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata);
-int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn);
+int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn,int total);
 //int find_file(int count,Query *a1,char *sensitive);
 void appendChild(int cid,char *record,char *type,int fp);
 int deleteChild(int cid,char *record,char *type,int fp);
 char *getColumn(char *record,char *column,char *type);
 char *getRecord(int rid,char *type);
-void print(int rid,char *type,char *data);
+void print(int rid,char *type,char *data,char *outputcolumn);
 int SensitiveCompare(char *s1, char *s2);
 typedef struct{
         char column[10];
@@ -437,14 +437,72 @@ char *getRecord(int rid,char *type){
         close(ds_file);
         return data;
 }
-void print(int rid,char *type,char *data){
+void print(int rid,char *type,char *data,char *outputcolumn){
     char filename[FILENAMELENS];
+    char *temp,*temp_outputcolumn,*result;
+    char *delim = "(),";
+    char **columns;
+    int COLUMN_NUM=20;
+    int i=0,j=0;
+    //LIST command
+    if(strcmp(outputcolumn,"")==0){
+            if(strcmp(type,"dir")==0){
+                    printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,data);
+            }
+            else{
+                    printf("%d,%s,%s<nl>",rid,file_list[rid].filename,data);
+            }
+            return ;
+    }
+    //FIND command
+    temp_outputcolumn = malloc(sizeof(char)*strlen(outputcolumn));
+    strcpy(temp_outputcolumn,outputcolumn);
+    columns = (char **)malloc(sizeof(char *)*COLUMN_NUM);
+    columns[i] = strtok(temp_outputcolumn,delim);
+    //printf("outputcolumn[%d]:[%s]\n",i,columns[i]);
+
+    i++;
+    
+    while((columns[i] = strtok(NULL,delim))!=NULL){
+            //printf("outputcolumn[%d]:[%s]\n",i,columns[i]);
+            i++;
+    }
+    result = malloc(sizeof(char)*(COLUMN_NUM)*500);
+    for(j=0;j<i;j++){
+        temp = getColumn(data,columns[j],type);
+        //printf("[%s]:[%s]\n",columns[j],temp);
+        if(strcmp(columns[j],"@all")==0){
+            sprintf(result,"%s",temp);
+        }
+        else if(j!=0){
+            sprintf(result,"%s%s:%s",result,columns[j],temp);
+        }
+        else{ 
+            sprintf(result,"%s:%s",columns[j],temp);
+        }
+    }
+
+    //printf("result:\n[%s]",result);
+    
     if(strcmp(type,"dir")==0){
-        printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,data);
+        /*
+        if(strcmp(outputcolumn,"@all")==0){
+            printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,data);
+        }
+        */
+        printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,result);
     }
     else{
-        printf("%d,%s,%s<nl>",rid,file_list[rid].filename,data);
+        /*
+        if(strcmp(outputcolumn,"@all")==0){
+            printf("%d,%s,%s<nl>",rid,file_list[rid].filename,data);
+        }
+        */
+        printf("%d,%s,%s<nl>",rid,file_list[rid].filename,result);
     }
+    free(result);
+    free(columns);
+    free(temp_outputcolumn);
     return ;
 }
 char *getColumn(char *record,char *column,char *type){
@@ -455,7 +513,7 @@ char *getColumn(char *record,char *column,char *type){
         char *delim2=",\n";
         char *data;
         int i=0;
-        if(strcmp(column,"all")==0){
+        if(strcmp(column,"@all")==0){
                 return record;
         }
 
@@ -475,7 +533,7 @@ char *getColumn(char *record,char *column,char *type){
                         did[i] = strtok(dchild,delim2);
                         //printf("did:[%s]",did[i]);
                         data = getRecord(atoi(did[i]),type);
-                        print(atoi(did[i]),type,data);
+                        print(atoi(did[i]),type,data,"");
                         i++;
                         while((did[i] = strtok(NULL,delim2))!=NULL){
                                 //printf("!!!test!!!\n");
@@ -483,7 +541,7 @@ char *getColumn(char *record,char *column,char *type){
                                 if(strcmp(did[i],"\n")==0){break;}
                                 //printf("[%s]\n",did[i]);
                                 data = getRecord(atoi(did[i]),type);
-                                print(atoi(did[i]),type,data);
+                                print(atoi(did[i]),type,data,"");
                                 i++;
 
                         }
@@ -505,11 +563,12 @@ char *getColumn(char *record,char *column,char *type){
         return 0;
         
 }
-int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn){
+int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn,int total){
         int rid,i=1,j=0,k=0,l;
         int from=atoi(offset),to=atoi(outputnum);
-        printf("from:%d,to:%d\n",from ,to);
-        int count=0,total=0,equal=0;
+        printf("[%s]from:%d,to:%d\n",type,from ,to);
+        printf("id:%d,dir_id:%d\n",id,dir_id);
+        int count=0,equal=0;
         int columns=10;
         char *data,*content;
         char *delim=";";
@@ -520,7 +579,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         char *pattern1;
         pattern1 = malloc(sizeof(char)*(strlen(pattern)));
         strcpy(pattern1,pattern);
-        printf("copy:%s\n",pattern1);
+        //printf("copy:%s\n",pattern1);
         Query array[100];
         //parse pattern
         column = (char **)malloc(sizeof(char*)*columns);
@@ -571,10 +630,11 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         //get records's column
         if(strcmp(type,"file")==0){
             i=from;
-            total=0;
-            while(file_list[i].key!=-1){
+            //total=0;
+            //while(file_list[i].key!=-1){
+            while(i<id){
                     equal=0;
-                    //if(total==to){break;}
+                    if(total==to){break;}
                     for(j=0;j<count;j++){//column name check
                             /*compare @filename*/
                             if(strcmp(array[j].column,"@filename")==0){
@@ -608,7 +668,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             break;
                                                     default ://and
                                                             if(strcmp(sensitive,"yes")==0){
-                                                                    printf("compare:%s,%s\n",file_list[i].filename,array[j].filter[l]);
+                                                                    //printf("compare:%s,%s\n",file_list[i].filename,array[j].filter[l]);
                                                                     if(SensitiveCompare(file_list[i].filename,array[j].filter[l])==0){
                                                                         //printf("sensitiveCompare:0\n");
                                                                     }
@@ -743,7 +803,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                             }
                     }
                     if(equal==0){
-                            print(i,type,data);
+                            print(i,type,data,outputcolumn);
                             total++;
                     }
                     i++;
@@ -759,9 +819,10 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         }
         else if(strcmp(type,"dir")==0){
             i=from;
-            total=0;
-            while(dir_list[i].key!=-1){
-                    //if(total==to){break;}
+            //total=0;
+            //while(dir_list[i].key!=-1){
+            while(i<dir_id){
+                    if(total==to){break;}
                     equal=0;
                     for(j=0;j<count;j++){//column name check
                             /*compare @filename*/
@@ -930,7 +991,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                             }
                     }
                     if(equal==0){
-                            print(i,type,data);
+                            print(i,type,data,outputcolumn);
                             total++;
                     }
                     i++;
@@ -948,7 +1009,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         }
     free(column);
     free(pattern1);
-    return 0;
+    return total;
 }
 /*
 int find_file(int count,Query *a1,char *sensitive){
@@ -998,20 +1059,20 @@ int rdb_delete(){
 int SensitiveCompare(char *s1, char *s2){
         int i=0;
         int l1,l2;
-        l1 = sizeof(s1)+1;
-        l2 = sizeof(s2)+1;
+        l1 = strlen(s1);
+        l2 = strlen(s2);
         char *p1,*p2;
         p1 = malloc(sizeof(char)*l1);
         p2 = malloc(sizeof(char)*l2);
-        for(i=0;i<l1+1;i++){
+        for(i=0;i<l1;i++){
             p1[i] = tolower(s1[i]);
         }
         p1[i]='\0';
-        for(i=0;i<l2+1;i++){
+        for(i=0;i<l2;i++){
             p2[i] = tolower(s2[i]);
         }
         p2[i]='\0';
-        printf("p1:%s,p2:%s\n",p1,p2);
+        //printf("p1:%s,p2:%s\n",p1,p2);
         if(i=strstr(p1,p2)>0){
             //printf("i:%d\n",i);
             free(p1);

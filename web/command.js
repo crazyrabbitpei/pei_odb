@@ -200,7 +200,7 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
             'type': method,
             'success':function(data){
 
-                console.log("=>"+data+"<=");
+                //console.log("=>"+data+"<=");
                 var arr = data.split("<nl>");
 
                 var filename="";
@@ -213,7 +213,7 @@ function createFileBlock(command,method,sfilename,show,page,column,callback){
                 var types = [];
                 
                 for(i=0;i<arr.length-1;i++){
-                        console.log("["+i+"]"+arr[i]);
+                        //console.log("["+i+"]"+arr[i]);
                         if(arr[i]=="none,none,none"){
                             if(show=="move_list"){
                                     $(".move_list").remove();
@@ -543,7 +543,7 @@ function jumpdir(e){
                         return;
                 }
         }
-        sendCommand("READD","all","","",dir_id,"","","","","POST","",function(result){
+        sendCommand("READD","@all","","",dir_id,"","","","","POST","",function(result){
                         //console.log("jump:"+result);
                         var file_content = document.getElementById("file_content");
                         var file_descrip = document.getElementById("file_descrip");
@@ -568,7 +568,7 @@ function jumpdir(e){
                         file_tag.removeChild(tag_block);
 
                         var type = result.match(/@type:.*/);
-                        type = type[0].replace("@type:","");
+                        type = type[0].replace("@type:","")
                         var ctime = result.match(/@ctime:.*/);
                         ctime = ctime[0].replace("@ctime:","");
                         var ds = result.match(/@ds:.*/);
@@ -648,7 +648,7 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
 
-                                sendCommand("READD","all","","",id,"","","","","POST","",function(result){
+                                sendCommand("READD","@all","","",id,"","","","","POST","",function(result){
                                     //console.log(result);
                                     var type = result.match(/@type:.*/);
                                     type = type[0].replace("@type:","");
@@ -681,10 +681,12 @@ function control(e){
                                 file_descrip.appendChild(edit1);
                                 file_tag.appendChild(edit2);
                                 
-                                sendCommand("READF","all","","",id,"","","","","POST","",function(result){
+                                sendCommand("READF","@all","","",id,"","","","","POST","",function(result){
                                     //console.log(result);
                                     var type = result.match(/@type:.*/);
                                     type = type[0].replace("@type:","");
+                                    var size = result.match(/@size:.*/);
+                                    size = size[0].replace("@size:","")
                                     var ctime = result.match(/@ctime:.*/);
                                     ctime = ctime[0].replace("@ctime:","");
                                     var ds = result.match(/@ds:.*/);
@@ -694,6 +696,7 @@ function control(e){
 
                                     file_content.innerHTML = "檔案名稱:"+ name +"</br>";
                                     file_content.innerHTML += " 檔案類型:"+ type+"</br>";
+                                    file_content.innerHTML += " 檔案大小:"+ size+" KB</br>";
                                     file_content.innerHTML += " 加入日期:"+ ctime+"</br>";
 
                                     

@@ -125,7 +125,7 @@ int cgiMain()
 #if 1
     char command[10],*cm;
     char *method;
-    int len;
+    int len,total=0;
     int m,n;
     int output,data_file,des_file;
     char date[50];
@@ -238,8 +238,17 @@ int cgiMain()
             strcpy(outputnum,"50");
         }
         if(cgiFormString("outputcolumn", outputcolumn, sizeof(outputcolumn))==cgiFormNotFound){
-            strcpy(outputcolumn,"all");
+            strcpy(outputcolumn,"@all");
         }
+        id_file = open(id_record_file,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
+        read(id_file,t,sizeof(char*));
+        id = atoi(t);
+        close(id_file);
+        
+        id_dir = open(id_record_dir,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG);
+        read(id_dir,t,sizeof(char*));
+        dir_id = atoi(t);
+        close(id_dir);
     }
     else if(strcmp(command,"DETAIL")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
@@ -818,12 +827,12 @@ int cgiMain()
     else if(option==FIND){
         printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
         if(strcmp(type,"all")==0){
-            rdb_find(filename,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn);
-            rdb_find(filename,"file",sensitive,offset,sortby,range,outputnum,outputcolumn);
+            total = rdb_find(filename,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            total = rdb_find(filename,"file",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
 
         }
         else{
-            rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+            total = rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn,total);
         }
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
