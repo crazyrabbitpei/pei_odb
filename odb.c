@@ -112,7 +112,7 @@ void unencode(char *src, char *last, char *dest)
 int cgiMain()
 //int cgiMain(int argc, char *argv[])
 {
-    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50],newdata[1000];
+    char filename[FILENAMELENS],relfilename[FILENAMELENS]="",newfilename[FILENAMELENS]="",dirname[FILENAMELENS]="",getid[FILENAMELENS],column[50],newdata[1000],search[SLEN];
     char type[10],sensitive[5],offset[10],sortby[20],range[20],outputnum[10],outputcolumn[100];
     int option=-1,cnt,index,page=1;
     char temp[3]="";
@@ -208,8 +208,8 @@ int cgiMain()
     else if(strcmp(command,"FIND")==0){
     printf("%s%c%c\n","Content-Type:text/html;charset=utf-8",13,10);
         option=FIND;
-        if(cgiFormString("search", filename, sizeof(filename))==cgiFormNotFound){
-             printf("<p>Find:Filename [%s] doesn't exist!</p>",filename);
+        if(cgiFormString("search", search, sizeof(search))==cgiFormNotFound){
+             printf("<p>Find:Filename [%s] doesn't exist!</p>",search);
              return 1;
         }
         /*
@@ -218,7 +218,6 @@ int cgiMain()
              return 1;
         }
         */
-
         if(cgiFormString("type", type, sizeof(type))==cgiFormNotFound){
             strcpy(type,"all");
         }
@@ -825,14 +824,26 @@ int cgiMain()
     }
 
     else if(option==FIND){
-        printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
+        total=0;
+        printf("search=%s,type:%s,sensitive:%s,offset:%s,sortby:%s,range:%s,outputnum:%s,outputcolumn:%s\n",search,type,sensitive,offset,sortby,range,outputnum,outputcolumn);
         if(strcmp(type,"all")==0){
-            total = rdb_find(filename,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
-            total = rdb_find(filename,"file",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
-
+            total = rdb_find(search,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            total = rdb_find(search,"file",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            if(total==0){
+                printf("none,none,none<nl>");
+            }
+            else{
+                printf("------------total:%d\n",total);
+            }
         }
         else{
-            total = rdb_find(filename,type,sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            total = rdb_find(search,type,sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            if(total==0){
+                printf("none,none,none<nl>");
+            }
+            else{
+                printf("------------total:%d\n",total);
+            }
         }
         /*
         if(ReadNameFile(dir_map_path,ON,option,relfilename,page,dirname)==-1){
@@ -929,14 +940,18 @@ int PutFile(int dir_path,char *filename,char *relfilename,int index_file,int map
     char *wday[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
     time_t current_time;
     struct tm *p;
-    char* date;
+    char date[25];
+    /*
     current_time = time(NULL);
     date = ctime(&current_time);
-    /*
+    */
+    time_t timep;
+    
     time(&timep);
     p=gmtime(&timep);
-    sprintf(date,"%d%d%d%d%d%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday,p->tm_hour, p->tm_min, p->tm_sec);
-    */
+
+    sprintf(date,"%d %d %d %d:%d:%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec);
+
     unsigned char *data;
     unsigned long int filesize;
     int data_file,db_file,des_file;

@@ -33,7 +33,7 @@ int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int
     int size;
     record = malloc(sizeof(char)*RECORDLEN);
     //sprintf(record,"@\n@type:%s\n@ctime:%s@size:%d\n",type,date,len);
-    sprintf(record,"@\n@type:%s\n@ctime:%s@size:%d\n@ds:\n@tag:\n@path:%d\n@dchild:\n@fchild:\n",type,date,len,rid);
+    sprintf(record,"@\n@type:%s\n@ctime:%s\n@size:%d\n@ds:\n@tag:\n@path:%d\n@dchild:\n@fchild:\n",type,date,len,rid);
     write(fp,record,sizeof(char)*RECORDLEN);
     size = strlen(record);
     free(record);
@@ -60,7 +60,10 @@ int StoreGais(char *name,char *type,int len,char *date,unsigned long int key,int
 }
 
 int CreateDir(char *name,int rid){
-    char* date;
+    char date[25];
+    struct tm *p;
+    time_t timep;
+
     int des_file,des_offset,size;
     unsigned long int hv,index_map;
     time_t current_time;
@@ -69,9 +72,17 @@ int CreateDir(char *name,int rid){
         return -1;
     }
     des_offset = GetOffset(des_file);
-
+    time(&timep);
+    p=gmtime(&timep);
+    sprintf(date,"%d %d %d %d:%d:%d",(1900+p->tm_year), (1+p->tm_mon),p->tm_mday, p->tm_hour, p->tm_min, p->tm_sec);
+    /*
+    char *date1;
     current_time = time(NULL);
-    date = ctime(&current_time);
+    date1 = ctime(&current_time);
+    */
+    
+
+
     //TODO:file name same as dir name?
     /*  
     hv = Gethv((unsigned char *)name,(unsigned long int)strlen(name));
@@ -407,6 +418,7 @@ char *rdb_read(int rid,char *column,char *type){
         else{//list childs's total columns
                 data = getRecord(rid,type);
                 content = getColumn(data,column,type);
+                //if(content==NULL){break;}
                 //print(rid,type,content);
         }
         //get record with the id
@@ -470,6 +482,7 @@ void print(int rid,char *type,char *data,char *outputcolumn){
     result = malloc(sizeof(char)*(COLUMN_NUM)*500);
     for(j=0;j<i;j++){
         temp = getColumn(data,columns[j],type);
+        if(temp==NULL){continue;}
         //printf("[%s]:[%s]\n",columns[j],temp);
         if(strcmp(columns[j],"@all")==0){
             sprintf(result,"%s",temp);
@@ -490,7 +503,7 @@ void print(int rid,char *type,char *data,char *outputcolumn){
             printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,data);
         }
         */
-        printf("%d,%s,%s<nl>",rid,dir_list[rid].filename,result);
+        printf("%d,%s,%s\n",rid,dir_list[rid].filename,result);
     }
     else{
         /*
@@ -498,7 +511,7 @@ void print(int rid,char *type,char *data,char *outputcolumn){
             printf("%d,%s,%s<nl>",rid,file_list[rid].filename,data);
         }
         */
-        printf("%d,%s,%s<nl>",rid,file_list[rid].filename,result);
+        printf("%d,%s,%s\n",rid,file_list[rid].filename,result);
     }
     free(result);
     free(columns);
@@ -518,6 +531,8 @@ char *getColumn(char *record,char *column,char *type){
         }
 
         childs = strstr(record,column);
+        if(childs==0){return childs;};
+
         strcpy(temp,childs);
         //parse childs id
         dchild = malloc(sizeof(char)*RECORDLEN);
@@ -566,8 +581,9 @@ char *getColumn(char *record,char *column,char *type){
 int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn,int total){
         int rid,i=1,j=0,k=0,l;
         int from=atoi(offset),to=atoi(outputnum);
-        printf("[%s]from:%d,to:%d\n",type,from ,to);
-        printf("id:%d,dir_id:%d\n",id,dir_id);
+        //printf("[%s]from:%d,to:%d\n",type,from ,to);
+        //printf("id:%d,dir_id:%d\n",id,dir_id);
+        //printf("pattern:%s\n",pattern);
         int count=0,equal=0;
         int columns=10;
         char *data,*content;
@@ -577,7 +593,17 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         char *delim4="|!";
         char **column,**temp;
         char *pattern1;
-        pattern1 = malloc(sizeof(char)*(strlen(pattern)));
+        
+        char *delim5 = " ";//Sun Jun 21 //19:02:16 2015
+        char **date,**date1;
+        int date_c=0;
+        int temp_date_c=0;
+        char *delim6 = "~=";
+        int size1=0,size2=0,size=0;
+        char date_temp[10];
+        int year=0,month=0,day=0,year1=0,month1=0,day1=0,pyear=0,pmonth=0,pday=0;
+        pattern1 = malloc(sizeof(char)*SLEN);
+
         strcpy(pattern1,pattern);
         //printf("copy:%s\n",pattern1);
         Query array[100];
@@ -590,11 +616,9 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         //printf("column[%d]:%s\n",count,column[count]);
         //printf("[%d]%s:%s\n",count,array[count].column,array[count].pattern);
         count++;
-        
+
         while((column[count] = strtok(NULL,delim))!=NULL){
             if(column[count][0]=='@'){
-                //strcpy(array[count].column,strtok(column[count],delim2));
-                //strcpy(array[count].pattern,strtok(NULL,delim2));
                 //printf("column[%d]:%s\n",count,column[count]);
                 //printf("[%d]%s:%s\n",count,array[count].column,array[count].pattern);
                 count++;
@@ -609,30 +633,33 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
         while(i<count){//get column name and its pattern
                 strcpy(array[i].column,strtok(column[i],delim2));
                 strcpy(array[i].pattern,strtok(NULL,delim2));
-                printf("[%d]%s:%s\n",i,array[i].column,array[i].pattern);
+                //printf("[%d]%s:%s\n",i,array[i].column,array[i].pattern);
                 i++;
         }
+
         i=0;
         while(i<count){//cut column's pattern to small pattern
                 array[i].filter = (char **)malloc(sizeof(char*)*100);
                 k=0;
                 /*parse column's pattern*/
                 array[i].filter[k] = strtok(array[i].pattern,delim3);
-                printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
+                //printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
                 k++;
                 while((array[i].filter[k] = strtok(NULL,delim3))!=NULL){
-                        printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
+                        //printf("column[%d]:%s,filter[%d]:%s\n",i,array[i].column,k,array[i].filter[k]);
                         k++;
                 }
                 array[i].count = k;
             i++;
         }
+        //return;
         //get records's column
         if(strcmp(type,"file")==0){
             i=from;
             //total=0;
             //while(file_list[i].key!=-1){
             while(i<id){
+                    if(file_list[i].key==-1){i++;continue;}
                     equal=0;
                     if(total==to){break;}
                     for(j=0;j<count;j++){//column name check
@@ -658,7 +685,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],file_list[i].filename)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(file_list[i].filename,temp[0])>0){
@@ -717,7 +744,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],data)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        //return -1;
+                                                                            equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(data,temp[0])>0){
@@ -748,8 +776,102 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                     }
                                     
                                 }
-                                else{//except @all column
+                                else if(strcmp(array[j].column,"@ctime")==0){//search all column
+                                    pyear=0;pmonth=0;pday=0;
+                                    strcpy(date_temp,array[j].filter[0]);
+                                    temp_date_c=0;
+                                    date_c=0;
+                                    date = (char **)malloc(sizeof(char *)*6);
+                                    date1 = (char **)malloc(sizeof(char *)*6);
                                     content = getColumn(data,array[j].column,type);
+                                    sscanf(content,"%4d %d %2d",&pyear,&pmonth,&pday);
+                                    printf("pyear:%d,pmonth:%d,pday:%d\n",pyear,pmonth,pday);
+                                    
+                                    //if(content==NULL){equal=-1;break;}
+
+                                    year=0;month=0;day=0;
+                                    year1=0;month1=0;day1=0;
+
+                                    date_c=0;
+                                    date1[date_c] = strtok(date_temp,delim6);
+                                    sscanf(date1[date_c],"%4d%2d%2d",&year,&month,&day);
+                                    date_c++;
+                                    if((date1[date_c] = strtok(NULL,delim6))!=NULL){
+                                        sscanf(date1[date_c],"%4d%2d%2d",&year1,&month1,&day1);
+                                    }
+
+                                    if(year==0){
+                                            break;
+                                    }
+                                    if(month==0){
+                                            month=pmonth;
+                                    }
+                                    if(day==0){
+                                            day=pday;
+                                    }
+                                    if(month1==0){
+                                            month1=20;
+                                    }
+                                    if(day1==0){
+                                            day1=40;
+                                    }
+                                    printf("year:%d,month:%d,day:%d\n->year:%d,month:%d,day:%d\n",year,month,day,year1,month1,day1);
+                                    if(year1==0){
+                                        if(pyear!=year||pmonth!=month||pday!=day){
+                                            equal=-1;
+                                        }
+                                    }
+                                    else{
+                                        //year month day < pyear pmonth pday < year1 month1 day1
+                                        if(pyear>year1||pyear<year||pmonth>month1||pmonth<month||pday>day1||pday<day){
+                                            equal=-1;
+                                        }
+                                    }
+                                    free(date1);
+                                    free(date);
+                                }
+                                else if(strcmp(array[j].column,"@size")==0){//search all column
+
+                                    content = getColumn(data,array[j].column,type);
+                                    if(content==NULL){equal=-1;break;}
+                                    size = atoi(content);
+                                    for(l=0;l<array[j].count;l++){
+                                            switch(array[j].filter[l][0]){
+                                                case '~':
+                                                        size1 = atoi(strtok(array[j].filter[l],delim6));
+                                                        //printf("smaller than size:%d\n",size1);
+                                                        if(size>=size1){
+                                                                equal=-1;
+                                                        }
+                                                        break;
+                                                case '=':
+                                                        size1 = atoi(strtok(array[j].filter[l],delim6));
+                                                        //printf("equal size:%d\n",size1);
+                                                        if(size!=size1){
+                                                                equal=-1;
+                                                        }
+                                                        break;
+                                                default:
+                                                        sscanf(array[j].filter[l],"%d~%d",&size1,&size2);
+                                                        if(size2==0){
+                                                            //printf("bigger than size:%d\n",size1);
+                                                            if(size<=size1){
+                                                                equal=-1;
+                                                            }
+                                                        }
+                                                        else{
+                                                            //printf("during size1:%d~size2:%d\n",size1,size2);
+                                                            if(size<size1||size>size2){
+                                                                equal=-1;
+                                                            }
+                                                        }
+
+                                            }
+                                    }
+                                }
+                                else{//except @all,@size,@ctime column
+                                    content = getColumn(data,array[j].column,type);
+                                    if(content==NULL){equal=-1;break;}
                                     for(l=0;l<array[j].count;l++){
                                             switch(array[j].filter[l][0]){
                                                     case '|'://or
@@ -770,7 +892,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],content)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        //return -1;
+                                                                            equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(content,temp[0])>0){
@@ -810,10 +933,10 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
             }
 
             if(total==0){
-                    printf("none,none,none<nl>");
+                    //printf("none,none,none<nl>");
             }
             else{
-                   printf("%d<nl>",total);   
+                   //printf("total:%d\n",total);   
             }
 
         }
@@ -822,6 +945,7 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
             //total=0;
             //while(dir_list[i].key!=-1){
             while(i<dir_id){
+                    if(dir_list[i].key==-1){i++;continue;}
                     if(total==to){break;}
                     equal=0;
                     for(j=0;j<count;j++){//column name check
@@ -847,7 +971,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],dir_list[i].filename)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        //return -1;
+                                                                            equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(dir_list[i].filename,temp[0])>0){
@@ -905,7 +1030,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],data)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        //return -1;
+                                                                            equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(data,temp[0])>0){
@@ -936,8 +1062,63 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                     }
                                     
                                 }
+                                else if(strcmp(array[j].column,"@ctime")==0){//search all column
+                                    pyear=0;pmonth=0;pday=0;
+                                    strcpy(date_temp,array[j].filter[0]);
+                                    temp_date_c=0;
+                                    date_c=0;
+                                    date = (char **)malloc(sizeof(char *)*6);
+                                    date1 = (char **)malloc(sizeof(char *)*6);
+                                    content = getColumn(data,array[j].column,type);
+                                    sscanf(content,"%4d %d %2d",&pyear,&pmonth,&pday);
+                                    printf("pyear:%d,pmonth:%d,pday:%d\n",pyear,pmonth,pday);
+                                    
+                                    //if(content==NULL){equal=-1;break;}
+
+                                    year=0;month=0;day=0;
+                                    year1=0;month1=0;day1=0;
+
+                                    date_c=0;
+                                    date1[date_c] = strtok(date_temp,delim6);
+                                    sscanf(date1[date_c],"%4d%2d%2d",&year,&month,&day);
+                                    date_c++;
+                                    if((date1[date_c] = strtok(NULL,delim6))!=NULL){
+                                        sscanf(date1[date_c],"%4d%2d%2d",&year1,&month1,&day1);
+                                    }
+
+                                    if(year==0){
+                                            break;
+                                    }
+                                    if(month==0){
+                                            month=pmonth;
+                                    }
+                                    if(day==0){
+                                            day=pday;
+                                    }
+                                    if(month1==0){
+                                            month1=20;
+                                    }
+                                    if(day1==0){
+                                            day1=40;
+                                    }
+                                    printf("year:%d,month:%d,day:%d\n->year:%d,month:%d,day:%d\n",year,month,day,year1,month1,day1);
+                                    if(year1==0){
+                                        if(pyear!=year||pmonth!=month||pday!=day){
+                                            equal=-1;
+                                        }
+                                    }
+                                    else{
+                                        //year month day < pyear pmonth pday < year1 month1 day1
+                                        if(pyear>year1||pyear<year||pmonth>month1||pmonth<month||pday>day1||pday<day){
+                                            equal=-1;
+                                        }
+                                    }
+                                    free(date1);
+                                    free(date);
+                                }
                                 else{//except @all column
                                     content = getColumn(data,array[j].column,type);
+                                    if(content==NULL){equal=-1;break;}
                                     for(l=0;l<array[j].count;l++){
                                             switch(array[j].filter[l][0]){
                                                     case '|'://or
@@ -958,7 +1139,8 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
                                                             if(strcmp(sensitive,"yes")==0){
                                                                     if(SensitiveCompare(temp[0],content)==0){
                                                                         //printf("sensitiveCompare:0\n");
-                                                                        return -1;
+                                                                        //return -1;
+                                                                        equal=-1;
                                                                     }
                                                             }
                                                             else if(strstr(content,temp[0])>0){
@@ -998,14 +1180,12 @@ int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,
             }
 
             if(total==0){
-                    printf("none,none,none<nl>");
+                    //printf("none,none,none<nl>");
             }
             else{
-                   printf("%d<nl>",total);   
+                   //printf("total:%d\n",total);   
             }
 
-        }
-        else{//search file and dir
         }
     free(column);
     free(pattern1);
@@ -1059,6 +1239,7 @@ int rdb_delete(){
 int SensitiveCompare(char *s1, char *s2){
         int i=0;
         int l1,l2;
+        char *p;
         l1 = strlen(s1);
         l2 = strlen(s2);
         char *p1,*p2;
@@ -1073,8 +1254,9 @@ int SensitiveCompare(char *s1, char *s2){
         }
         p2[i]='\0';
         //printf("p1:%s,p2:%s\n",p1,p2);
-        if(i=strstr(p1,p2)>0){
-            //printf("i:%d\n",i);
+        p=strstr(p1,p2);
+        if(p){
+            //printf("p:%s\n",p);
             free(p1);
             free(p2);
             return 0;
