@@ -31,7 +31,7 @@ extern char id_record_file[100];
 extern char id_record_dir[100];
 extern char dfile_map_path[100];
 extern char dfile_path[100];
-extern int index_file,map_file,ini_file,name_file,id_file,id_dir;
+extern int index_file,map_file,ini_file,name_file,id_file,id_dir,sortid;
 
 
 typedef struct{
@@ -46,7 +46,7 @@ typedef struct{
         char filename[FILENAMELENS];
         int offset;//rdb:gais record offset
 
-} map;
+}map;
 extern dir_map dir_list[BUCKETNUMBER];
 extern map file_list[BUCKETNUMBER];
 
@@ -61,3 +61,4 @@ int rdb_update(int cid,int fp,char *type,int command,char *column,char *newdata)
 int rdb_find(char *pattern,char *type,char *sensitive,char *offset,char *sortby,char *range,char *outputnum,char *outputcolumn,int total);
 unsigned long int Gethv(unsigned char *data,unsigned long int size);
 int GetOffset(int file);
+int SortByColumn(char *sortby,char *outputcolumn);

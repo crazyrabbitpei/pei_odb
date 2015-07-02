@@ -829,6 +829,9 @@ int cgiMain()
         if(strcmp(type,"all")==0){
             total = rdb_find(search,"dir",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
             total = rdb_find(search,"file",sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            if(strcmp(sortby,"offset")!=0){
+                SortByColumn(sortby,outputcolumn);
+            }
             if(total==0){
                 printf("none,none,none<nl>");
             }
@@ -838,6 +841,9 @@ int cgiMain()
         }
         else{
             total = rdb_find(search,type,sensitive,offset,sortby,range,outputnum,outputcolumn,total);
+            if(strcmp(sortby,"offset")!=0){
+                SortByColumn(sortby,outputcolumn);
+            }
             if(total==0){
                 printf("none,none,none<nl>");
             }

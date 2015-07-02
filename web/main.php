@@ -108,8 +108,6 @@
 
         <aside id="right">
             <section id="search">       
-                 <input type="texterea">
-                </input>
             </section>
             <section id="dir_list">
             </section>
